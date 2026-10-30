@@ -1,0 +1,651 @@
+# An event API that uses every part of AsyncAPI 3 the viewer shows, and passes the full Digitals ruleset.
+# Render it with: dt-asyncapi docs examples/asyncapi.yaml
+asyncapi: 3.1.0
+id: urn:example:bookings-events
+info:
+  title: Bookings events
+  version: 1.2.0
+  description: |
+    Events the bookings service publishes as rooms and studios are booked, moved and cancelled, and the
+    request it answers about free slots.
+
+    ## Delivery
+
+    - Every event is published **at least once**. Consumers drop duplicates by the `messageId` header.
+    - Events about one booking arrive in order: the Kafka key is the booking's id.
+    - A consumer that falls more than 7 days behind loses events. Rebuild from the bookings API instead.
+
+    Descriptions are Markdown, so they can carry `code`, tables and [links](https://www.asyncapi.com/docs).
+
+    | Event | When |
+    | --- | --- |
+    | `BookingConfirmed` | A customer or the venue books a room or studio |
+    | `BookingMoved` | The booking moves to another time or host |
+    | `BookingCancelled` | Either side cancels |
+  termsOfService: https://example.com/terms
+  contact:
+    name: Bookings team
+    url: https://example.com/teams/bookings
+    email: bookings@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  tags:
+    - $ref: '#/components/tags/availability'
+    - $ref: '#/components/tags/bookings'
+  externalDocs:
+    $ref: '#/components/externalDocs/runbook'
+
+defaultContentType: application/json
+
+servers:
+  production:
+    host: kafka.{region}.bookings.internal:9093
+    protocol: kafka-secure
+    protocolVersion: '3.7'
+    title: Production
+    summary: The production Kafka cluster.
+    description: Keeps every event for 7 days. Each consuming service gets its own SCRAM user.
+    variables:
+      region:
+        enum: [uksouth, ukwest]
+        default: uksouth
+        description: The Azure region the cluster runs in. ukwest is the failover.
+    security:
+      - $ref: '#/components/securitySchemes/scram'
+    tags:
+      - name: production
+        description: Live customer data. Access needs a data access agreement.
+    bindings:
+      kafka:
+        schemaRegistryUrl: https://schema-registry.example.com
+        schemaRegistryVendor: confluent
+        bindingVersion: '0.5.0'
+  development:
+    host: localhost:9092
+    protocol: kafka
+    title: Development
+    summary: Kafka in docker compose, for local development.
+    description: Starts empty. Run `just seed` to publish a few of each event.
+
+channels:
+  bookingConfirmed:
+    address: bookings.v1.confirmed
+    title: Booking confirmed
+    summary: One message per new booking.
+    description: Every booking the service confirms, from the customer app, the venue's system or the phone line.
+    servers:
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/development'
+    messages:
+      bookingConfirmed:
+        $ref: '#/components/messages/BookingConfirmed'
+    bindings:
+      kafka:
+        topic: bookings.v1.confirmed
+        partitions: 12
+        replicas: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+        bindingVersion: '0.5.0'
+    externalDocs:
+      $ref: '#/components/externalDocs/runbook'
+
+  bookingChanged:
+    address: bookings.v1.{venueId}.changed
+    title: Booking changed
+    summary: Moves and cancellations, one topic per venue.
+    description: |
+      Every change to a confirmed booking. A venue's systems subscribe to their own topic only, so the
+      venue is in the address. The two messages share the channel, so a consumer sees them in order.
+    parameters:
+      venueId:
+        $ref: '#/components/parameters/venueId'
+    messages:
+      bookingMoved:
+        $ref: '#/components/messages/BookingMoved'
+      bookingCancelled:
+        $ref: '#/components/messages/BookingCancelled'
+
+  availabilityRequests:
+    address: availability.v1.requests
+    title: Availability requests
+    description: Questions about which slots are free. The service answers each on the requester's reply channel.
+    messages:
+      availabilityRequested:
+        $ref: '#/components/messages/AvailabilityRequested'
+
+  availabilityReplies:
+    address: null
+    title: Availability replies
+    description: The answer to one request. The address is whatever the request's replyTo header named.
+    messages:
+      availabilityReplied:
+        $ref: '#/components/messages/AvailabilityReplied'
+
+operations:
+  PublishBookingConfirmed:
+    action: send
+    channel:
+      $ref: '#/channels/bookingConfirmed'
+    title: Publish booking confirmed
+    summary: Publishes each new booking.
+    description: Sends BookingConfirmed once the booking is stored, keyed by its id.
+    security:
+      - $ref: '#/components/securitySchemes/scram'
+    tags:
+      - $ref: '#/components/tags/bookings'
+    traits:
+      - $ref: '#/components/operationTraits/producer'
+    messages:
+      - $ref: '#/channels/bookingConfirmed/messages/bookingConfirmed'
+
+  PublishBookingChanged:
+    action: send
+    channel:
+      $ref: '#/channels/bookingChanged'
+    title: Publish booking changed
+    summary: Publishes each move and cancellation.
+    description: Sends BookingMoved or BookingCancelled to the venue's topic once the change is stored.
+    tags:
+      - $ref: '#/components/tags/bookings'
+    traits:
+      - $ref: '#/components/operationTraits/producer'
+    messages:
+      - $ref: '#/channels/bookingChanged/messages/bookingMoved'
+      - $ref: '#/channels/bookingChanged/messages/bookingCancelled'
+
+  AnswerAvailabilityRequest:
+    action: receive
+    channel:
+      $ref: '#/channels/availabilityRequests'
+    title: Answer availability request
+    summary: Answers each request with the free slots.
+    description: |
+      Request and reply over Kafka. The requester sends AvailabilityRequested with a replyTo header; the
+      service replies there with AvailabilityReplied, carrying the request's messageId as its correlationId.
+    tags:
+      - $ref: '#/components/tags/availability'
+    bindings:
+      kafka:
+        groupId:
+          type: string
+          enum: [bookings-availability]
+          description: Every instance of the service shares one group, so each request is answered once.
+        bindingVersion: '0.5.0'
+    messages:
+      - $ref: '#/channels/availabilityRequests/messages/availabilityRequested'
+    reply:
+      $ref: '#/components/replies/availability'
+
+components:
+  schemas:
+    Booking:
+      type: object
+      description: A booking as the service stores it.
+      required: [bookingId, venueId, customerId, startTime, durationMinutes, kind, host]
+      properties:
+        bookingId:
+          $ref: '#/components/schemas/BookingId'
+        venueId:
+          type: string
+          pattern: '^[A-Z]{3}[0-9]{3}$'
+          maxLength: 6
+          description: The venue's code, three letters for the city and three digits.
+          examples: [LDN001]
+        customerId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: The customer's id in the customers service. Never their email address.
+        startTime:
+          type: string
+          format: date-time
+          maxLength: 33
+          description: When the booking starts, in UTC.
+        durationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 480
+          multipleOf: 15
+          description: How long the room or studio is booked for.
+        kind:
+          $ref: '#/components/schemas/BookingKind'
+        host:
+          $ref: '#/components/schemas/Host'
+        requests:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          description: What the customer asked for, in their words.
+          items:
+            type: string
+            maxLength: 200
+        hostName:
+          type: string
+          maxLength: 100
+          deprecated: true
+          description: Replaced by host.displayName. Removed in version 2.
+
+    BookingId:
+      type: string
+      format: uuid
+      maxLength: 36
+      readOnly: true
+      description: Assigned by the service when the booking is made.
+
+    BookingKind:
+      type: string
+      enum: [inPerson, phone, video]
+      default: inPerson
+      description: How the customer attends.
+
+    Host:
+      type: object
+      description: The person who runs the session.
+      required: [hostId, role, displayName]
+      properties:
+        hostId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: The host's id in the staff service.
+        role:
+          type: string
+          enum: [facilitator, instructor, photographer, technician]
+          description: The host's role, which decides what they can be booked for.
+        displayName:
+          type: string
+          maxLength: 100
+          description: The name the customer sees, such as Sam Rivera.
+
+    BookingMovedPayload:
+      description: The booking after the move, with when it was before.
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          required: [previousStartTime]
+          properties:
+            previousStartTime:
+              type: string
+              format: date-time
+              maxLength: 33
+              description: When the booking started before the move.
+
+    BookingCancelledPayload:
+      type: object
+      description: Which booking was cancelled, when, and by whom.
+      required: [bookingId, cancelTime, cancellation]
+      properties:
+        bookingId:
+          $ref: '#/components/schemas/BookingId'
+        cancelTime:
+          type: string
+          format: date-time
+          maxLength: 33
+          description: When the booking was cancelled.
+        cancellation:
+          description: Who cancelled. A customer gives a reason; a venue gives a code.
+          oneOf:
+            - $ref: '#/components/schemas/CustomerCancellation'
+            - $ref: '#/components/schemas/VenueCancellation'
+
+    CustomerCancellation:
+      type: object
+      description: The customer cancelled.
+      required: [by]
+      properties:
+        by:
+          type: string
+          const: customer
+          description: Always customer.
+        reason:
+          type: string
+          maxLength: 200
+          description: The customer's reason, if they gave one.
+
+    VenueCancellation:
+      type: object
+      description: The venue cancelled, and the customer needs offering another time.
+      required: [by, code]
+      properties:
+        by:
+          type: string
+          const: venue
+          description: Always venue.
+        code:
+          type: string
+          enum: [hostUnavailable, venueClosed, bookedInError]
+          description: Why the venue cancelled.
+
+    AvailabilityRequest:
+      type: object
+      description: Which free slots the requester wants.
+      required: [venueId, fromDate, toDate]
+      properties:
+        venueId:
+          type: string
+          pattern: '^[A-Z]{3}[0-9]{3}$'
+          maxLength: 6
+          description: The venue's code.
+        fromDate:
+          type: string
+          format: date
+          maxLength: 10
+          description: The first day to search, in the venue's time zone.
+        toDate:
+          type: string
+          format: date
+          maxLength: 10
+          description: The last day to search. At most 28 days after fromDate.
+        kind:
+          $ref: '#/components/schemas/BookingKind'
+
+    AvailabilityReply:
+      type: object
+      description: The free slots, earliest first.
+      required: [slots]
+      properties:
+        slots:
+          type: array
+          maxItems: 100
+          description: Up to 100 free slots. An empty list means none in the range.
+          items:
+            type: object
+            description: One free slot.
+            required: [startTime, durationMinutes, host]
+            properties:
+              startTime:
+                type: string
+                format: date-time
+                maxLength: 33
+                description: When the slot starts, in UTC.
+              durationMinutes:
+                type: integer
+                minimum: 15
+                maximum: 480
+                description: How long the slot is.
+              host:
+                $ref: '#/components/schemas/Host'
+
+    Headers:
+      type: object
+      description: The headers every message carries.
+      required: [messageId, sentTime]
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: Unique per message. Consumers drop a message whose id they have seen.
+        sentTime:
+          type: string
+          format: date-time
+          maxLength: 33
+          description: When the service sent the message, in UTC.
+        traceparent:
+          type: string
+          maxLength: 55
+          pattern: '^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+          description: The W3C trace context, so a trace follows the event into each consumer.
+
+  messages:
+    BookingConfirmed:
+      name: BookingConfirmed
+      title: Booking confirmed
+      summary: A booking was confirmed.
+      description: The booking as stored, sent once after it is confirmed.
+      contentType: application/json
+      tags:
+        - $ref: '#/components/tags/bookings'
+      externalDocs:
+        description: How booking works, from the customer's side.
+        url: https://example.com/docs/booking
+      traits:
+        - $ref: '#/components/messageTraits/standard'
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            maxLength: 36
+            description: The booking's id, so events about one booking stay in order.
+          bindingVersion: '0.5.0'
+      payload:
+        $ref: '#/components/schemas/Booking'
+      examples:
+        - name: videoCall
+          summary: A 30-minute video call with a facilitator.
+          headers:
+            messageId: 6f1c2b0e-3a4d-4c5e-9f60-7a8b9c0d1e2f
+            sentTime: '2026-10-30T09:15:02Z'
+            traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+          payload:
+            bookingId: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+            venueId: LDN001
+            customerId: 9b7e4c2a-1d3f-4a5b-8c6d-0e1f2a3b4c5d
+            startTime: '2026-11-03T10:30:00Z'
+            durationMinutes: 30
+            kind: video
+            host:
+              hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+              role: facilitator
+              displayName: Sam Rivera
+            requests: [Share the slides beforehand]
+        - name: studioInPerson
+          summary: A 2-hour photo studio session at the venue.
+          payload:
+            bookingId: 7c8d9e0f-1a2b-4c3d-8e4f-5a6b7c8d9e0f
+            venueId: LDN001
+            customerId: 2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f
+            startTime: '2026-11-05T14:00:00Z'
+            durationMinutes: 120
+            kind: inPerson
+            host:
+              hostId: 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+              role: photographer
+              displayName: Jo Okafor
+
+    BookingMoved:
+      name: BookingMoved
+      title: Booking moved
+      summary: A booking moved to another time or host.
+      description: The booking after the move, with its previous start time.
+      contentType: application/json
+      traits:
+        - $ref: '#/components/messageTraits/standard'
+      payload:
+        $ref: '#/components/schemas/BookingMovedPayload'
+      examples:
+        - name: movedLater
+          summary: Moved an hour later, same host.
+          payload:
+            bookingId: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+            venueId: LDN001
+            customerId: 9b7e4c2a-1d3f-4a5b-8c6d-0e1f2a3b4c5d
+            startTime: '2026-11-03T11:30:00Z'
+            previousStartTime: '2026-11-03T10:30:00Z'
+            durationMinutes: 30
+            kind: video
+            host:
+              hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+              role: facilitator
+              displayName: Sam Rivera
+
+    BookingCancelled:
+      name: BookingCancelled
+      title: Booking cancelled
+      summary: A booking was cancelled.
+      description: Which booking was cancelled and who cancelled it. The slot is free again.
+      contentType: application/json
+      traits:
+        - $ref: '#/components/messageTraits/standard'
+      payload:
+        $ref: '#/components/schemas/BookingCancelledPayload'
+      examples:
+        - name: byCustomer
+          summary: The customer cancelled in the app.
+          payload:
+            bookingId: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+            cancelTime: '2026-11-02T18:04:11Z'
+            cancellation:
+              by: customer
+              reason: Plans changed.
+        - name: byVenue
+          summary: The venue cancelled because the host can't make it.
+          payload:
+            bookingId: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+            cancelTime: '2026-11-03T08:01:45Z'
+            cancellation:
+              by: venue
+              code: hostUnavailable
+
+    AvailabilityRequested:
+      name: AvailabilityRequested
+      title: Availability requested
+      summary: Asks which slots are free.
+      description: A request for the free slots at one venue over a range of days.
+      contentType: application/json
+      headers:
+        type: object
+        description: The standard headers, plus where to send the reply.
+        required: [messageId, sentTime, replyTo]
+        properties:
+          messageId:
+            type: string
+            format: uuid
+            maxLength: 36
+            description: Unique per message. The reply carries it as its correlationId.
+          sentTime:
+            type: string
+            format: date-time
+            maxLength: 33
+            description: When the requester sent the message, in UTC.
+          replyTo:
+            type: string
+            maxLength: 249
+            description: The topic to send the reply to, usually the requester's own.
+      payload:
+        $ref: '#/components/schemas/AvailabilityRequest'
+      examples:
+        - name: nextWeekVideo
+          summary: Video slots at one venue next week.
+          headers:
+            messageId: 0d1e2f3a-4b5c-4d6e-8f7a-9b0c1d2e3f4a
+            sentTime: '2026-10-30T09:20:00Z'
+            replyTo: customer-app.availability.replies
+          payload:
+            venueId: LDN001
+            fromDate: '2026-11-02'
+            toDate: '2026-11-06'
+            kind: video
+
+    AvailabilityReplied:
+      name: AvailabilityReplied
+      title: Availability replied
+      summary: The free slots asked for.
+      description: The answer to one AvailabilityRequested, sent to the topic its replyTo header named.
+      contentType: application/json
+      correlationId:
+        $ref: '#/components/correlationIds/request'
+      headers:
+        type: object
+        description: The standard headers, plus the request this answers.
+        required: [messageId, sentTime, correlationId]
+        properties:
+          messageId:
+            type: string
+            format: uuid
+            maxLength: 36
+            description: Unique per message.
+          sentTime:
+            type: string
+            format: date-time
+            maxLength: 33
+            description: When the service sent the reply, in UTC.
+          correlationId:
+            type: string
+            format: uuid
+            maxLength: 36
+            description: The messageId of the request this answers.
+      payload:
+        $ref: '#/components/schemas/AvailabilityReply'
+      examples:
+        - name: twoSlots
+          summary: Two video slots with the same host.
+          headers:
+            messageId: 8a9b0c1d-2e3f-4a5b-8c6d-7e8f9a0b1c2d
+            sentTime: '2026-10-30T09:20:01Z'
+            correlationId: 0d1e2f3a-4b5c-4d6e-8f7a-9b0c1d2e3f4a
+          payload:
+            slots:
+              - startTime: '2026-11-02T09:00:00Z'
+                durationMinutes: 30
+                host:
+                  hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+                  role: facilitator
+                  displayName: Sam Rivera
+              - startTime: '2026-11-04T16:30:00Z'
+                durationMinutes: 30
+                host:
+                  hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+                  role: facilitator
+                  displayName: Sam Rivera
+
+  parameters:
+    venueId:
+      description: The venue's code. Each venue's systems subscribe to their own.
+      examples: [LDN001, MAN002]
+
+  correlationIds:
+    request:
+      description: Pairs a reply with its request by the request's messageId.
+      location: $message.header#/correlationId
+
+  replies:
+    availability:
+      address:
+        $ref: '#/components/replyAddresses/replyToHeader'
+      channel:
+        $ref: '#/channels/availabilityReplies'
+      messages:
+        - $ref: '#/channels/availabilityReplies/messages/availabilityReplied'
+
+  replyAddresses:
+    replyToHeader:
+      description: The topic the request's replyTo header names.
+      location: $message.header#/replyTo
+
+  securitySchemes:
+    scram:
+      type: scramSha512
+      description: SASL/SCRAM-SHA-512 with a user per consuming service. Ask the platform team for one.
+
+  messageTraits:
+    standard:
+      headers:
+        $ref: '#/components/schemas/Headers'
+
+  operationTraits:
+    producer:
+      bindings:
+        kafka:
+          clientId:
+            type: string
+            enum: [bookings-service]
+            description: The service's Kafka client id, which the broker's quotas and logs use.
+          bindingVersion: '0.5.0'
+
+  tags:
+    availability:
+      name: Availability
+      description: Asking which slots are free.
+    bookings:
+      name: Bookings
+      description: Booking, moving and cancelling rooms and studios.
+
+  externalDocs:
+    runbook:
+      description: The bookings service's runbook.
+      url: https://example.com/docs/bookings

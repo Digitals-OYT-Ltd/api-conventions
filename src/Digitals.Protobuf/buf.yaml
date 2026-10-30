@@ -1,0 +1,22 @@
+# Digitals ruleset for buf: the baseline (buf-baseline.yaml) plus the Digitals house rules. A new contract
+# must pass it. buf has no extends, so this file repeats the baseline. dt-protobuf passes it to buf as
+# --config, so a module's own buf.yaml is ignored.
+# Version v1, because buf reads a v1 file passed by --config as the config for whatever input it lints.
+version: v1
+lint:
+  use:
+    # BASIC, plus a version suffix on every package (acme.notes.v1), a service named ...Service, one
+    # request and one response message per RPC named after it (GetNoteRequest, GetNoteResponse), and enum
+    # values prefixed with the enum's name and a zero value ending _UNSPECIFIED.
+    - STANDARD
+    # A comment on every service, RPC, message, field, oneof, enum and enum value: the .proto equivalent of
+    # dt-description.
+    - COMMENTS
+  # google.protobuf.Empty as a request or response can't gain a field later, so each RPC gets its own.
+  rpc_allow_google_protobuf_empty_requests: false
+  rpc_allow_google_protobuf_empty_responses: false
+breaking:
+  # A change that breaks code generated from the old files, the strictest of buf's levels. It includes
+  # everything that breaks the wire and JSON formats.
+  use:
+    - FILE

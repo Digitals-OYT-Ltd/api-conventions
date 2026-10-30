@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<RollForward>Major</RollForward>
+
+		<PackAsTool>true</PackAsTool>
+		<ToolCommandName>dt-openapi</ToolCommandName>
+		<!-- One package per RID, each carrying that platform's vacuum and oasdiff (NativeTools.targets). -->
+		<RuntimeIdentifiers>osx-arm64;osx-x64;linux-arm64;linux-x64;win-arm64;win-x64</RuntimeIdentifiers>
+
+		<PackageId>Digitals.OpenApi</PackageId>
+		<!-- Released by tagging openapi/v1.2.0, which packs 1.2.0. -->
+		<MinVerTagPrefix>openapi/v</MinVerTagPrefix>
+		<Description>Lints any OpenAPI 3.0 or 3.1 document against the Digitals API rules and diffs a design against its implementation. Bundles vacuum and oasdiff, so it needs nothing else installed.</Description>
+		<PackageTags>openapi;lint;spectral;vacuum;oasdiff;api;contract;dotnet-tool</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MinVer" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="digitals.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="digitals-baseline.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="functions/*.js" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Compile Include="..\ViewerPage.cs" Link="ViewerPage.cs" />
+		<None Include="viewer/*.html" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="breaking-levels.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<!-- Swagger UI for `dt-openapi swagger`. To upgrade, change the version and every hash, then run `just test`. -->
+	<PropertyGroup>
+		<SwaggerUiVersion>5.33.3</SwaggerUiVersion>
+		<_SwaggerUi>https://cdn.jsdelivr.net/npm/swagger-ui-dist@$(SwaggerUiVersion)</_SwaggerUi>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<_WebAsset Include="swagger-ui-bundle.js" Url="$(_SwaggerUi)/swagger-ui-bundle.js" Sha256="3861ec4cc8e7b9fa9f250280da9350436e418137788282c753b9a2ac5fb7bd2f" />
+		<_WebAsset Include="swagger-ui.css" Url="$(_SwaggerUi)/swagger-ui.css" Sha256="1ac324f7dcd27e4b9386b4bd6421271ec147e922a22c05ba24b11515e9aa6321" />
+		<_WebAsset Include="swagger-ui.LICENSE" Url="$(_SwaggerUi)/LICENSE" Sha256="cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30" />
+	</ItemGroup>
+
+	<Import Project="NativeTools.targets" />
+	<Import Project="..\WebAssets.targets" />
+
+</Project>

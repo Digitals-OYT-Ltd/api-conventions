@@ -1,0 +1,148 @@
+# Digitals baseline ruleset for vacuum: the industry basics every HTTP API must meet, whatever its
+# design. A valid OpenAPI document, the OWASP API Security Top 10 rules, documented operations and
+# errors, and no personal data in a URL. Use it to audit an existing API; digitals.yaml adds the Digitals
+# house rules on top, and a new contract must pass that. Every built-in rule is listed: error to enforce
+# it, off with the reason. See docs/api-conventions.md.
+extends:
+  - [spectral:oas, all]
+  - [spectral:owasp, all]
+rules:
+  # Valid documents.
+  oas3-schema: error
+  oas-schema-check: error
+  allof-conflicts: error
+  duplicate-paths: error
+  duplicated-entry-in-enum: error
+  typed-enum: error
+  nullable-enum-contains-null: error
+  no-$ref-siblings: error # fires on OAS 3.0 only
+  oas3-no-$ref-siblings: error # never fired in testing
+  no-ambiguous-paths: error
+  path-declarations-must-exist: error
+  path-not-include-query: error
+  path-keys-no-trailing-slash: error
+  paths-specificity-order: error # some routers and mock servers match paths in document order
+  path-params: error
+  operation-parameters: error
+  required-fields-defined: error
+  oas3-unused-component: error
+  oas3-example-external-check: error
+  oas3-valid-schema-example: error # parameter and header examples only; dt-example-valid does the rest
+  no-eval-in-markdown: error
+  no-script-tags-in-markdown: error
+  info-license-spdx: error # url or identifier, not both; doesn't check the SPDX code
+  oas3-operation-security-defined: error
+
+  # Operations.
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-operationId-valid-in-url: error
+  operation-tags: error
+  operation-tag-defined: error
+  openapi-tags: error
+  operation-success-response: error
+  post-response-success: error
+  operation-description: error
+  oas3-parameter-description: error
+  info-description: error
+
+  # Security (OWASP API1, API2, API4, API8).
+  owasp-no-numeric-ids: error
+  owasp-no-http-basic: error
+  owasp-no-api-keys-in-url: error
+  owasp-no-credentials-in-url: error
+  owasp-auth-insecure-schemes: error
+  owasp-auth-urls-https: error
+  owasp-oauth-no-implicit: error
+  owasp-oauth-no-password: error
+  owasp-security-hosts-https-oas3: error
+  owasp-protection-global-unsafe: error
+  owasp-protection-global-unsafe-strict: error
+  owasp-protection-global-safe: error
+  owasp-define-error-responses-401: error
+  owasp-string-restricted: error
+  owasp-integer-limit: error
+  owasp-integer-format: error
+  owasp-string-limit: error # request schemas only
+  owasp-array-limit: error # request schemas only
+
+  # Request bodies (OWASP API3). The server rejects a field the contract doesn't define, so a request
+  # schema says so, and a map-shaped request is bounded like an array. Both check request schemas only.
+  owasp-no-additionalProperties: error
+  owasp-constrained-additionalProperties: error
+
+  # Rate limits and failures (OWASP API4, API8). Every 2xx and 4xx declares the RateLimit header, which
+  # also makes owasp-rate-limit-retry-after check every 429: it skips a 429 that declares no headers.
+  owasp-rate-limit: error
+  owasp-rate-limit-retry-after: error
+  owasp-define-error-responses-429: error
+  owasp-define-error-responses-500: error
+
+  # Digitals house style: digitals.yaml turns these on, or replaces them with a stricter dt- rule.
+  no-http-verbs-in-path: off
+  operation-singular-tag: off
+  tag-description: off
+  camel-case-properties: off # dt-property-casing
+  paths-kebab-case: off # dt-path-segments
+  component-description: off # dt-description
+  oas3-missing-example: off # flags the first schema's first property whatever it has; dt-example replaces it
+
+  # Not adopted.
+  description-duplication: off
+  info-contact: off # contact is optional, decided 2026-10-29
+  contact-properties: off # contact is optional, decided 2026-10-29
+  info-license: off # license is optional, decided 2026-10-29
+  license-url: off # license is optional, decided 2026-10-29
+  oas3-api-servers: off # servers are optional, decided 2026-10-29
+  oas3-host-not-example: off # servers are optional, decided 2026-10-29
+  oas3-server-trailing-slash: off # servers are optional, decided 2026-10-29
+  openapi-tags-alphabetical: off
+  operation-4xx-response: off # dt-problem-json checks the bodies; a contract lists only what an operation sends
+  owasp-define-error-validation: off # a contract lists only what an operation sends; GetNote can't send 400
+  no-request-body: off
+  no-unnecessary-combinator: off
+  oas-missing-type: off
+  path-item-refs: off
+  migrate-zally-ignore: off
+  owasp-jwt-best-practices: off # checks wording in a description, not tokens
+
+  # OpenAPI 2 only.
+  oas2-anyOf: off
+  oas2-api-host: off
+  oas2-api-schemes: off
+  oas2-discriminator: off
+  oas2-host-not-example: off
+  oas2-host-trailing-slash: off
+  oas2-oneOf: off
+  oas2-operation-formData-consume-check: off
+  oas2-operation-security-defined: off
+  oas2-parameter-description: off
+  oas2-schema: off
+  oas2-unused-definition: off
+
+  # Digitals rules.
+  dt-no-personal-data-in-url:
+    description: Personal data travels in bodies, never in a path or query string, where proxies and logs keep it
+    message: "Parameter '{{value}}' puts personal data in the URL: send it in a POST :search body"
+    given: $.paths[*]..parameters[?(@.in == 'path' || @.in == 'query')].name
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: '(?i)^(nhs|nhs[-_]?no|nhs[-_]?number|dob|date[-_]?of[-_]?birth|birth[-_]?date|post[-_]?code|zip[-_]?code|address|email|email[-_]?address|phone|phone[-_]?number|telephone|mobile|mobile[-_]?number|first[-_]?name|fore[-_]?name|given[-_]?name|last[-_]?name|surname|family[-_]?name|full[-_]?name|nino|ni[-_]?number|national[-_]?insurance[-_]?number)$'
+  # The function is functions/exampleMatchesSchema.js, which dt-openapi passes to vacuum with --functions.
+  dt-example-valid:
+    description: Every request, response and component schema example matches its schema
+    given:
+      - $.paths[*][*].requestBody.content[*]
+      - $.paths[*][*].responses[*].content[*]
+      - $.components.requestBodies[*].content[*]
+      - $.components.responses[*].content[*]
+      - $.components.schemas[*]
+    severity: error
+    then: { function: exampleMatchesSchema }
+  dt-operation-summary:
+    description: Every operation has a summary
+    given: $.paths[*][get,put,post,delete,options,head,patch,trace]
+    severity: error
+    then: { field: summary, function: truthy }

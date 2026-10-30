@@ -1,0 +1,39 @@
+<Project>
+
+	<!--
+		Bundles the browser viewers that `swagger` and `docs` inline into a page. A project lists one _WebAsset
+		per file: Url and Sha256. The build downloads each, checks the SHA-256, and copies it to viewer/ beside
+		the page template. The files are the same on every platform, so every RID package carries them.
+	-->
+	<PropertyGroup>
+		<_WebAssetCache>$(BaseIntermediateOutputPath)web/</_WebAssetCache>
+	</PropertyGroup>
+
+	<!-- Runs once per file. A file is cached under its hash, so a version bump never reuses an old one. -->
+	<Target Name="_DigitalsFetchWebAsset" Outputs="%(_WebAsset.Identity)">
+		<PropertyGroup>
+			<_Folder>$(_WebAssetCache)%(_WebAsset.Sha256)/</_Folder>
+			<_File>$(_Folder)%(_WebAsset.Identity)</_File>
+			<_Expected>%(_WebAsset.Sha256)</_Expected>
+		</PropertyGroup>
+
+		<DownloadFile Condition="!Exists('$(_File)')" SourceUrl="%(_WebAsset.Url)" DestinationFolder="$(_Folder)" DestinationFileName="%(_WebAsset.Identity)" />
+
+		<GetFileHash Files="$(_File)" Algorithm="SHA256">
+			<Output TaskParameter="Hash" PropertyName="_Actual" />
+		</GetFileHash>
+		<Delete Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Files="$(_File)" />
+		<Error Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Text="%(_WebAsset.Url) has SHA-256 $(_Actual), expected $(_Expected). Deleted it; the next build downloads it again." />
+
+		<ItemGroup>
+			<_WebAssetFetched Include="$(_File)" Link="viewer/%(_WebAsset.Identity)" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="DigitalsAddWebAssets" BeforeTargets="AssignTargetPaths" DependsOnTargets="_DigitalsFetchWebAsset">
+		<ItemGroup>
+			<None Include="@(_WebAssetFetched)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		</ItemGroup>
+	</Target>
+
+</Project>

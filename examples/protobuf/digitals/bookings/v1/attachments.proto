@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package digitals.bookings.v1;
+
+// Documents attached to a booking, such as a room layout. Files go in and out in chunks of up to
+// 1 MiB, so a call never holds a whole file in one message.
+service AttachmentService {
+  // Attaches a document. The first message names it; every message after carries the next chunk.
+  rpc AddAttachment(stream AddAttachmentRequest) returns (AddAttachmentResponse);
+
+  // Downloads a document, a chunk per message, in order.
+  rpc GetAttachment(GetAttachmentRequest) returns (stream GetAttachmentResponse);
+}
+
+// One message of an upload.
+message AddAttachmentRequest {
+  // The first message carries the metadata and every message after it a chunk.
+  oneof part {
+    // What the document is. Only in the first message.
+    AttachmentMetadata metadata = 1;
+    // The next part of the file, up to 1 MiB.
+    bytes chunk = 2;
+  }
+}
+
+// What a document is.
+message AttachmentMetadata {
+  // The booking to attach it to.
+  string booking_id = 1;
+  // The file name, shown to the host.
+  string file_name = 2;
+  // The media type, application/pdf or image/png.
+  string content_type = 3;
+  // The size in bytes, up to 20 MiB. The upload fails with INVALID_ARGUMENT when the chunks add up to more.
+  int64 size_bytes = 4;
+}
+
+// The document attached.
+message AddAttachmentResponse {
+  // The attachment's ID.
+  string attachment_id = 1;
+}
+
+// Asks for a document.
+message GetAttachmentRequest {
+  // The booking it's attached to.
+  string booking_id = 1;
+  // The attachment's ID.
+  string attachment_id = 2;
+}
+
+// One chunk of a download.
+message GetAttachmentResponse {
+  // The next part of the file. The stream ends after the last.
+  bytes chunk = 1;
+}

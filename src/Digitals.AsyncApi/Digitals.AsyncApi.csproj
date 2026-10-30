@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<RollForward>Major</RollForward>
+
+		<PackAsTool>true</PackAsTool>
+		<ToolCommandName>dt-asyncapi</ToolCommandName>
+		<!-- One package per RID, each carrying that platform's Spectral. -->
+		<RuntimeIdentifiers>osx-arm64;osx-x64;linux-arm64;linux-x64;win-arm64;win-x64</RuntimeIdentifiers>
+
+		<PackageId>Digitals.AsyncApi</PackageId>
+		<!-- Released by tagging asyncapi/v1.2.0, which packs 1.2.0. -->
+		<MinVerTagPrefix>asyncapi/v</MinVerTagPrefix>
+		<Description>Lints any AsyncAPI 2 or 3 document against the Digitals event API rules. Bundles Spectral, so it needs nothing else installed.</Description>
+		<PackageTags>asyncapi;lint;spectral;events;messaging;api;contract;dotnet-tool</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MinVer" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="digitals.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="digitals-baseline.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="functions/*.js" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Compile Include="..\ViewerPage.cs" Link="ViewerPage.cs" />
+		<None Include="viewer/*.html" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<!-- The AsyncAPI viewer for `dt-asyncapi docs`. To upgrade, change the version and every hash, then run `just test`. -->
+	<PropertyGroup>
+		<AsyncApiReactVersion>3.2.1</AsyncApiReactVersion>
+		<_AsyncApiReact>https://cdn.jsdelivr.net/npm/@asyncapi/react-component@$(AsyncApiReactVersion)</_AsyncApiReact>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<_WebAsset Include="asyncapi-react.js" Url="$(_AsyncApiReact)/browser/standalone/index.js" Sha256="719f29a62127c5c406af8b3b016167d69e43624200354966cc4997bdce5e4c54" />
+		<_WebAsset Include="asyncapi-react.css" Url="$(_AsyncApiReact)/styles/default.min.css" Sha256="c8093f9b6441559267845abc24611f7721d075e4f278a8143857bcdc348df410" />
+		<_WebAsset Include="asyncapi-react.LICENSE" Url="$(_AsyncApiReact)/LICENSE" Sha256="43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1" />
+	</ItemGroup>
+
+	<!--
+		To upgrade Spectral, change the version and every hash (from the release page), then run `just test`.
+		Spectral has no Windows Arm64 build, so win-arm64 carries the x64 one, which Windows runs emulated.
+	-->
+	<PropertyGroup>
+		<SpectralVersion>6.17.0</SpectralVersion>
+		<_SpectralRelease>https://github.com/stoplightio/spectral/releases/download/v$(SpectralVersion)</_SpectralRelease>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<_NativeDownload Include="spectral" Executable="true" Rid="osx-arm64" Url="$(_SpectralRelease)/spectral-macos-arm64" Sha256="cb7e1bd31d85a9920100d79e7ba138cc75cf529dfa8e7492c69affe52e38d142" />
+		<_NativeDownload Include="spectral" Executable="true" Rid="osx-x64" Url="$(_SpectralRelease)/spectral-macos-x64" Sha256="5664d1c7eafae8989613632ba434f75e18d5dcc2d3840ed72b3ed57678c8c46d" />
+		<_NativeDownload Include="spectral" Executable="true" Rid="linux-arm64" Url="$(_SpectralRelease)/spectral-linux-arm64" Sha256="27eb1c2880dba43c9cbebb5d10bfbacd7d359428b64dd0d9659cf5e406808503" />
+		<_NativeDownload Include="spectral" Executable="true" Rid="linux-x64" Url="$(_SpectralRelease)/spectral-linux-x64" Sha256="e6244baecff57dfb89ba8379a09563270fbb4ac7f73fb8692510a6160059ec53" />
+		<_NativeDownload Include="spectral" Executable="true" Rid="win-arm64" Url="$(_SpectralRelease)/spectral.exe" Sha256="cb5d08792c41b1240fb547099ace3227ba1931761a14b0fcdefd92f96160b7bf" />
+		<_NativeDownload Include="spectral" Executable="true" Rid="win-x64" Url="$(_SpectralRelease)/spectral.exe" Sha256="cb5d08792c41b1240fb547099ace3227ba1931761a14b0fcdefd92f96160b7bf" />
+		<_NativeDownload Include="spectral.LICENSE" Rid="any" Url="https://raw.githubusercontent.com/stoplightio/spectral/v$(SpectralVersion)/LICENSE" Sha256="d45c17f7ecc80e0deab3372ff352c7d00b7d573755c3c672088c21a376673698" />
+	</ItemGroup>
+
+	<Import Project="..\NativeBinaries.targets" />
+	<Import Project="..\WebAssets.targets" />
+
+</Project>

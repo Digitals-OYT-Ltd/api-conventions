@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="442" viewBox="0 0 960 442" role="img" aria-label="dt-asyncapi lint failing an event contract: a payload field with no description, an array with no maxItems and a message example whose createTime is not a date-time, each with its line, path and rule">
+<rect x="0.5" y="0.5" width="959" height="441" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<path d="M0.5 36 V10.5 a10 10 0 0 1 10 -10 H949.5 a10 10 0 0 1 10 10 V36 Z" fill="#f6f8fa" stroke="#d0d7de"/>
+<circle cx="22" cy="18" r="6" fill="#ff5f57"/>
+<circle cx="42" cy="18" r="6" fill="#febc2e"/>
+<circle cx="62" cy="18" r="6" fill="#28c840"/>
+<text x="480.0" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#59636e">bash</text>
+<g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" xml:space="preserve">
+<text x="28" y="64" fill="#1f2328"><tspan fill="#0969da">$</tspan> dotnet dt-asyncapi lint contract/asyncapi.yaml</text>
+<text x="28" y="108" fill="#1f2328"><tspan fill="#59636e">39:19  </tspan>  <tspan fill="#cf222e">✗</tspan>  The example doesn't match its schema. payload.createTime: "yesterday afternoon" is not a date-time</text>
+<text x="28" y="130" fill="#59636e">components.messages.NoteCreated.examples[0].payload</text>
+<text x="28" y="152" fill="#8250df">rule: dt-message-example-valid</text>
+<text x="28" y="196" fill="#1f2328"><tspan fill="#59636e">51:15  </tspan>  <tspan fill="#cf222e">✗</tspan>  Add a description. Every channel, operation, message, schema and payload field has one</text>
+<text x="28" y="218" fill="#59636e">components.schemas.Note.properties.title</text>
+<text x="28" y="240" fill="#8250df">rule: dt-description</text>
+<text x="28" y="284" fill="#1f2328"><tspan fill="#59636e">53:16  </tspan>  <tspan fill="#cf222e">✗</tspan>  An array with no maxItems</text>
+<text x="28" y="306" fill="#59636e">components.schemas.Note.properties.labels</text>
+<text x="28" y="328" fill="#8250df">rule: dt-array-limit</text>
+<text x="28" y="372" fill="#cf222e" font-weight="600">✖ 3 problems (3 errors, 0 warnings, 0 infos, 0 hints)</text>
+<text x="28" y="394" fill="#1f2328"><tspan fill="#0969da">$</tspan> echo $?</text>
+<text x="28" y="416" fill="#1f2328">1</text>
+</g></svg>

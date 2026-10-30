@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Written by dt-asyncapi docs. The AsyncAPI viewer and the contract are inlined, so the page works offline. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%TITLE%</title>
+<style>%STYLES%</style>
+<style>body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }</style>
+</head>
+<body>
+<div id="asyncapi"></div>
+<script>%SCRIPT%</script>
+<script>
+  // The viewer parses YAML or JSON from a string, AsyncAPI 2 or 3.
+  AsyncApiStandalone.render(
+    { schema: %SPEC%, config: { show: { sidebar: true } } },
+    document.getElementById("asyncapi"),
+  );
+</script>
+</body>
+</html>

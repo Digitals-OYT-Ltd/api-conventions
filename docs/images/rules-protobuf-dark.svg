@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="310" viewBox="0 0 960 310" role="img" aria-label="dt-protobuf lint failing a contract with its findings">
+<rect x="0.5" y="0.5" width="959" height="309" rx="10" fill="#0d1117" stroke="#30363d"/>
+<path d="M0.5 36 V10.5 a10 10 0 0 1 10 -10 H949.5 a10 10 0 0 1 10 10 V36 Z" fill="#161b22" stroke="#30363d"/>
+<circle cx="22" cy="18" r="6" fill="#ff5f57"/>
+<circle cx="42" cy="18" r="6" fill="#febc2e"/>
+<circle cx="62" cy="18" r="6" fill="#28c840"/>
+<text x="480.0" y="23" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#9198a1">bash</text>
+<g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" xml:space="preserve">
+<text x="28" y="64" fill="#e6edf3"><tspan fill="#4493f8">$</tspan> dotnet dt-protobuf lint proto</text>
+<text x="28" y="108" fill="#e6edf3"><tspan fill="#9198a1">proto/digitals/bookings/v1/bookings.proto:56:3</tspan>  <tspan fill="#f85149">✗</tspan>  </text>
+<text x="28" y="130" fill="#e6edf3">   Field "venue_id" should have a non-empty comment for documentation.</text>
+<text x="28" y="152" fill="#e6edf3"><tspan fill="#9198a1">proto/digitals/bookings/v1/bookings.proto:58:10</tspan>  <tspan fill="#f85149">✗</tspan>  </text>
+<text x="28" y="174" fill="#e6edf3">   Field name "customerId" should be lower_snake_case, such as "customer_id".</text>
+<text x="28" y="196" fill="#e6edf3"><tspan fill="#9198a1">proto/digitals/bookings/v1/bookings.proto:89:3</tspan>  <tspan fill="#f85149">✗</tspan>  </text>
+<text x="28" y="218" fill="#e6edf3">   Enum value name "CANCELLED" should be prefixed with "BOOKING_STATUS_".</text>
+<text x="28" y="262" fill="#e6edf3"><tspan fill="#4493f8">$</tspan> echo $?</text>
+<text x="28" y="284" fill="#e6edf3">100</text>
+</g></svg>

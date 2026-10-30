@@ -1,0 +1,1131 @@
+# An HTTP API that uses every part of OpenAPI 3.1 Swagger UI shows, and passes the full Digitals ruleset.
+# Render it with: dt-openapi swagger examples/openapi.yaml
+# The same bookings as examples/asyncapi.yaml, which describes the events this API's writes publish.
+openapi: 3.1.1
+info:
+  title: Bookings API
+  version: 1.2.0
+  summary: Books, moves and cancels meeting rooms and studios at venues, and keeps the documents attached to each booking.
+  description: |
+    ## Conventions
+
+    - **Paging.** A list takes `page` (from 1) and `pageSize`, and returns the page's `items` with `totalCount`,
+      the number of items on every page together. A list that can't count cheaply, such as a change feed, opts
+      out to cursors: `pageCursor` in, `nextPageCursor` out.
+    - **Retries.** A create takes an `Idempotency-Key`. Retrying with the same key returns the first result.
+    - **Concurrency.** A write takes the `ETag` from the last read as `If-Match`, and fails with 412 if the
+      booking changed in between.
+    - **Errors.** Every 4xx and 5xx body is [RFC 9457 problem details](https://www.rfc-editor.org/rfc/rfc9457).
+
+    | Scope | Allows |
+    | --- | --- |
+    | `bookings.read` | Reading and searching bookings and their attachments |
+    | `bookings.write` | Booking, changing and cancelling, and adding attachments |
+  termsOfService: https://example.com/terms
+  contact:
+    name: Bookings team
+    url: https://example.com/teams/bookings
+    email: bookings@example.com
+  license:
+    name: Apache 2.0
+    identifier: Apache-2.0
+externalDocs:
+  description: The bookings service's runbook.
+  url: https://example.com/docs/bookings
+servers:
+  - url: https://{environment}.bookings.internal
+    description: The hosted service. Pick an environment.
+    variables:
+      environment:
+        enum: [api, staging]
+        default: api
+        description: api is production; staging is reset every night.
+  - url: https://{host}
+    description: Any instance you run, such as `just run` on localhost:5001 with the .NET development certificate.
+    variables:
+      host:
+        default: localhost:5001
+        description: Host and port of the instance to call.
+security:
+  - OAuth2: [bookings.read]
+  - Bearer: []
+tags:
+  - name: Bookings
+    description: Booking, reading, changing and cancelling rooms and studios.
+    externalDocs:
+      description: How booking works, from the customer's side.
+      url: https://example.com/docs/booking
+  - name: Attachments
+    description: Documents attached to a booking, such as a floor plan.
+
+paths:
+  /api/v1/bookings:
+    get:
+      tags: [Bookings]
+      summary: Lists bookings.
+      description: Lists bookings at one venue, earliest first, a page at a time. Filter by status and start time.
+      operationId: ListBookings
+      security:
+        - OAuth2: [bookings.read]
+        - Bearer: []
+      parameters:
+        - name: venueId
+          in: query
+          description: The venue's code.
+          required: true
+          schema: { $ref: '#/components/schemas/VenueId' }
+          example: LDN001
+        - name: status
+          in: query
+          description: Only bookings in one of these statuses. Repeat the parameter for more than one.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 4
+            uniqueItems: true
+            items: { $ref: '#/components/schemas/BookingStatus' }
+          example: [confirmed]
+        - name: fromTime
+          in: query
+          description: Only bookings that start at or after this time. Defaults to now.
+          schema: { type: string, format: date-time, maxLength: 33 }
+          example: '2026-11-02T00:00:00Z'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: One page of bookings.
+          headers: &rateLimit
+            RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+            RateLimit: { $ref: '#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+    post:
+      tags: [Bookings]
+      summary: Books a room or studio.
+      description: Books a slot for a customer. The slot must be free; another booking for it fails with 409. Publishes BookingConfirmed.
+      operationId: CreateBooking
+      security:
+        - OAuth2: [bookings.write]
+        - Bearer: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        description: The slot and the customer. The service assigns the id and status.
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBooking' }
+            examples:
+              videoCall:
+                summary: A 30-minute video call with a facilitator
+                value:
+                  venueId: LDN001
+                  customerId: 9b7e4c2a-1d3f-4a5b-8c6d-0e1f2a3b4c5d
+                  hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+                  startTime: '2026-11-03T10:30:00Z'
+                  durationMinutes: 30
+                  kind: video
+                  requests: [Share the slides beforehand]
+              studioInPerson:
+                summary: A 2-hour photo studio session at the venue
+                description: No requests given. The photographer asks on the day.
+                value:
+                  venueId: LDN001
+                  customerId: 2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f
+                  hostId: 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+                  startTime: '2026-11-05T14:00:00Z'
+                  durationMinutes: 120
+                  kind: inPerson
+      responses:
+        '201':
+          description: The booking as made. Location holds its URL and ETag its version.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
+            RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+            RateLimit: { $ref: '#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+          links:
+            GetBooking:
+              operationId: GetBooking
+              description: Read the booking back by the id in the response.
+              parameters:
+                bookingId: $response.body#/id
+            CancelBooking:
+              operationId: CancelBooking
+              description: Cancel it, sending the ETag from this response as If-Match.
+              parameters:
+                bookingId: $response.body#/id
+                If-Match: $response.header.ETag
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/SlotTaken' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+
+  /api/v1/bookings:search:
+    post:
+      tags: [Bookings]
+      summary: Finds a customer's bookings.
+      description: Finds bookings by the customer's email address. It is a POST so the address travels in the body, never in a URL that proxies and logs keep.
+      operationId: SearchBookings
+      security:
+        - OAuth2: [bookings.read]
+        - Bearer: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      requestBody:
+        description: Who to search for.
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingSearch' }
+      responses:
+        '200':
+          description: One page of the customer's bookings, earliest first.
+          headers: *rateLimit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+
+  /api/v1/bookings/{bookingId}:
+    get:
+      tags: [Bookings]
+      summary: Reads one booking.
+      description: Returns one booking, with its ETag. Send the ETag as If-None-Match to get 304 when it hasn't changed.
+      operationId: GetBooking
+      security:
+        - OAuth2: [bookings.read]
+        - Bearer: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - name: If-None-Match
+          in: header
+          description: The ETag from an earlier read. The service answers 304 with no body if it still matches.
+          schema: { $ref: '#/components/schemas/EntityTag' }
+          example: '"3"'
+      responses:
+        '200':
+          description: The booking.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+            RateLimit: { $ref: '#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '304':
+          description: The booking hasn't changed since the If-None-Match ETag.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+    patch:
+      tags: [Bookings]
+      summary: Moves or changes a booking.
+      description: Changes the fields sent and leaves the rest (JSON merge patch). A field sent as null is cleared. Publishes BookingMoved when the time or host changes.
+      operationId: UpdateBooking
+      security:
+        - OAuth2: [bookings.write]
+        - Bearer: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        description: The fields to change.
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '#/components/schemas/BookingPatch' }
+            examples:
+              moveLater:
+                summary: Move an hour later
+                value:
+                  startTime: '2026-11-03T11:30:00Z'
+              clearNotes:
+                summary: Clear the venue's notes
+                value:
+                  notes: null
+      responses:
+        '200':
+          description: The booking after the change, with its new ETag.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+            RateLimit: { $ref: '#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/SlotTaken' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+
+  /api/v1/bookings/{bookingId}:cancel:
+    post:
+      tags: [Bookings]
+      summary: Cancels a booking.
+      description: Cancels the booking and frees its slot. Cancelling twice returns the cancelled booking again. Publishes BookingCancelled.
+      operationId: CancelBooking
+      security:
+        - OAuth2: [bookings.write]
+        - Bearer: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        description: Who is cancelling. A customer may give a reason; a venue gives a code.
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Cancellation' }
+            examples:
+              byCustomer:
+                summary: The customer cancels in the app
+                value: { by: customer, reason: Plans changed. }
+              byVenue:
+                summary: The venue cancels because the host can't make it
+                value: { by: venue, code: hostUnavailable }
+      responses:
+        '200':
+          description: The cancelled booking.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+            RateLimit: { $ref: '#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+
+  /api/v1/bookings/{bookingId}/attachments:
+    post:
+      tags: [Attachments]
+      summary: Attaches a document.
+      description: Uploads a PDF or image of up to 10 MB and attaches it to the booking.
+      operationId: AddAttachment
+      security:
+        - OAuth2: [bookings.write]
+        - Bearer: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        description: The file and what it is.
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/AttachmentUpload' }
+            encoding:
+              file:
+                contentType: application/pdf, image/jpeg, image/png
+      responses:
+        '201':
+          description: The attachment's details. Location holds the URL to download it.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+            RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+            RateLimit: { $ref: '#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Attachment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+
+  /api/v1/bookings/{bookingId}/attachments/{attachmentId}:
+    get:
+      tags: [Attachments]
+      summary: Downloads a document.
+      description: Returns the file as uploaded, with its own media type.
+      operationId: GetAttachment
+      security:
+        - OAuth2: [bookings.read]
+        - Bearer: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - name: attachmentId
+          in: path
+          description: The id from the attachment's id field or the Location header returned on upload.
+          required: true
+          schema: { type: string, format: uuid, maxLength: 36 }
+          example: 4d5e6f7a-8b9c-4d0e-8f1a-2b3c4d5e6f7a
+      responses:
+        '200':
+          description: The file.
+          headers: *rateLimit
+          content:
+            application/pdf:
+              schema: { type: string, contentMediaType: application/pdf, format: binary, maxLength: 10485760 }
+              example: '%PDF-1.7'
+            image/jpeg:
+              schema: { type: string, contentMediaType: image/jpeg, format: binary, maxLength: 10485760 }
+              example: JFIF
+            image/png:
+              schema: { type: string, contentMediaType: image/png, format: binary, maxLength: 10485760 }
+              example: PNG
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+
+  /api/v1/venues/{venueId}/bookings:
+    get:
+      tags: [Bookings]
+      summary: Lists a venue's bookings.
+      description: Replaced by ListBookings with the venueId query parameter, which pages and filters. Every response carries Deprecation and Sunset.
+      operationId: ListVenueBookings
+      deprecated: true
+      security:
+        - OAuth2: [bookings.read]
+        - Bearer: []
+      parameters:
+        - name: venueId
+          in: path
+          description: The venue's code.
+          required: true
+          schema: { $ref: '#/components/schemas/VenueId' }
+          example: LDN001
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: One page of the venue's bookings.
+          headers:
+            Deprecation: { $ref: '#/components/headers/Deprecation' }
+            Sunset: { $ref: '#/components/headers/Sunset' }
+            RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+            RateLimit: { $ref: '#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/Failed' }
+
+webhooks:
+  bookingReminder:
+    post:
+      summary: Reminds a subscriber of a booking.
+      description: >-
+        The service sends this to each subscriber's URL, 24 hours before a booking starts. The subscriber
+        implements it; the service doesn't host it, so Try it out doesn't apply. The subscriber checks
+        Webhook-Signature, then answers 2xx within 10 seconds. Any other answer, or none, and the service
+        retries with backoff for an hour.
+      operationId: BookingReminder
+      security:
+        - WebhookSignature: []
+      requestBody:
+        description: The booking coming up.
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Reminder' }
+      responses:
+        '204':
+          description: The subscriber has the reminder. Any 2xx counts.
+        default:
+          description: The subscriber didn't take the reminder, for example because the signature didn't match. The service retries, so the body is ignored.
+
+components:
+  parameters:
+    BookingId:
+      name: bookingId
+      in: path
+      description: The id from the booking's id field or the Location header returned when it was made.
+      required: true
+      schema: { type: string, format: uuid, maxLength: 36 }
+      example: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: A UUID the client makes up for each create. A retry with the same key gets the first response.
+      required: true
+      schema: { type: string, format: uuid, maxLength: 36 }
+      example: 5b0d7a3e-2c4f-4e8a-9f61-0c9b7d2e1a44
+    IfMatch:
+      name: If-Match
+      in: header
+      description: The ETag from the last read. The write fails with 412 if the booking has changed since.
+      required: true
+      schema: { $ref: '#/components/schemas/EntityTag' }
+      example: '"3"'
+    PageSize:
+      name: pageSize
+      in: query
+      description: The most items to return, from 1 to 100. The page may hold fewer. A value outside that range is a 400, never capped.
+      schema: { type: integer, format: int32, minimum: 1, maximum: 100, default: 20 }
+      example: 20
+    Page:
+      name: page
+      in: query
+      description: Which page to return, from 1. A page past the last returns no items. 0, a negative number or a non-number is a 400.
+      schema: { type: integer, format: int32, minimum: 1, maximum: 100000, default: 1 }
+      example: 1
+
+  headers:
+    RateLimit-Policy:
+      description: The caller's quota. q is the requests allowed per window of w seconds.
+      schema: { type: string, maxLength: 128, pattern: '^"[a-z0-9-]+";q=\d+;w=\d+$' }
+      example: '"standard";q=100;w=60'
+    RateLimit:
+      description: Where the caller stands. r is the requests left in this window and t the seconds until it resets.
+      schema: { type: string, maxLength: 128, pattern: '^"[a-z0-9-]+";r=\d+;t=\d+$' }
+      example: '"standard";r=42;t=17'
+    Retry-After:
+      description: Seconds to wait before trying again.
+      schema: { type: integer, format: int32, minimum: 0, maximum: 86400 }
+      example: 17
+    Location:
+      description: The new resource's URL.
+      schema: { type: string, format: uri-reference, maxLength: 2048 }
+      example: /api/v1/bookings/3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+    ETag:
+      description: The booking's version. Send it as If-Match on the next write.
+      schema: { $ref: '#/components/schemas/EntityTag' }
+      example: '"3"'
+    Deprecation:
+      description: When the operation was deprecated, as @ and Unix seconds (RFC 9745).
+      schema: { type: string, maxLength: 16, pattern: '^@\d+$' }
+      example: '@1793491200'
+    Sunset:
+      description: When the operation stops working (RFC 8594).
+      schema: { type: string, maxLength: 29, pattern: '^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$' }
+      example: Sat, 01 May 2027 00:00:00 GMT
+
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      description: A token from the identity provider for a service, with the scopes it needs.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.bookings.internal/oauth2/token
+          scopes:
+            bookings.read: Read and search bookings and attachments.
+            bookings.write: Make, change and cancel bookings, and add attachments.
+    Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A user's access token (JWT) from the customer app or the venue's system.
+    WebhookSignature:
+      type: apiKey
+      in: header
+      name: Webhook-Signature
+      description: An HMAC-SHA256 of the body with the subscriber's secret. A subscriber rejects a reminder whose signature doesn't match.
+
+  responses:
+    BadRequest:
+      description: The body is not valid JSON, lacks a required field or has one the contract doesn't define, or a parameter is malformed or out of range, such as pageSize=500.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.1
+            title: Bad Request
+            status: 400
+            detail: The request body lacks the required field 'startTime'.
+    Unauthorized:
+      description: No valid token.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.2
+            title: Unauthorized
+            status: 401
+    Forbidden:
+      description: The token lacks the scope the operation needs, or the caller may not see this venue.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.4
+            title: Forbidden
+            status: 403
+            detail: The token lacks the scope bookings.write.
+    NotFound:
+      description: No booking or attachment has this id.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.5
+            title: Not Found
+            status: 404
+            detail: No booking has id 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73.
+    SlotTaken:
+      description: Another booking already has this host at this time.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.10
+            title: Conflict
+            status: 409
+            detail: Sam Rivera already has a booking at 2026-11-03T10:30:00Z.
+    PreconditionFailed:
+      description: The booking changed since the If-Match ETag. Read it again and retry.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.13
+            title: Precondition Failed
+            status: 412
+    UnsupportedMediaType:
+      description: The body's media type isn't one the operation takes.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.16
+            title: Unsupported Media Type
+            status: 415
+    ValidationFailed:
+      description: The body is readable but breaks a rule, or the Idempotency-Key was sent with another body.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/HttpValidationProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.21
+            title: One or more validation errors occurred.
+            status: 422
+            errors:
+              durationMinutes: [The duration must be a multiple of 15 minutes.]
+    PreconditionRequired:
+      description: The write has no If-Match header.
+      headers: *rateLimit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc6585#section-3
+            title: Precondition Required
+            status: 428
+    TooManyRequests:
+      description: Too many requests from this caller in the current window.
+      headers:
+        RateLimit-Policy: { $ref: '#/components/headers/RateLimit-Policy' }
+        RateLimit: { $ref: '#/components/headers/RateLimit' }
+        Retry-After: { $ref: '#/components/headers/Retry-After' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc6585#section-4
+            title: Too Many Requests
+            status: 429
+            detail: Wait 17 seconds before trying again.
+    Failed:
+      description: The service failed. The body's traceId finds the error in the service's logs.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.6.1
+            title: An error occurred while processing your request.
+            status: 500
+            traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+
+  schemas:
+    VenueId:
+      description: A venue's code, three letters for the city and three digits.
+      type: string
+      pattern: '^[A-Z]{3}[0-9]{3}$'
+      maxLength: 6
+      example: LDN001
+
+    EntityTag:
+      description: An HTTP entity tag, quoted.
+      type: string
+      pattern: '^(W/)?"[^"]*"$'
+      maxLength: 128
+      example: '"3"'
+
+    BookingKind:
+      description: How the customer attends.
+      type: string
+      enum: [inPerson, phone, video]
+      default: inPerson
+      example: video
+
+    BookingStatus:
+      description: Where the booking is in its lifecycle.
+      type: string
+      enum: [confirmed, cancelled, attended, noShow]
+      example: confirmed
+
+    Host:
+      description: The person who runs the session.
+      type: object
+      required: [hostId, role, displayName]
+      properties:
+        hostId:
+          description: The host's id in the staff service.
+          type: string
+          format: uuid
+          maxLength: 36
+        role:
+          description: The host's role, which decides what they can be booked for.
+          type: string
+          enum: [facilitator, instructor, photographer, technician]
+        displayName:
+          description: The name the customer sees, such as Sam Rivera.
+          type: string
+          maxLength: 100
+          pattern: &singleLine '^[^\u0000-\u001F\u007F]*$'
+      example:
+        hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+        role: facilitator
+        displayName: Sam Rivera
+
+    Booking:
+      description: A booking as the service stores it.
+      type: object
+      required: [id, venueId, customerId, host, startTime, durationMinutes, kind, status, createTime]
+      properties:
+        id:
+          description: Assigned by the service when the booking is made.
+          type: string
+          format: uuid
+          maxLength: 36
+          readOnly: true
+        venueId: { $ref: '#/components/schemas/VenueId' }
+        customerId:
+          description: The customer's id in the customers service. Never their email address.
+          type: string
+          format: uuid
+          maxLength: 36
+        host: { $ref: '#/components/schemas/Host' }
+        startTime:
+          description: When the booking starts, in UTC.
+          type: string
+          format: date-time
+          maxLength: 33
+        durationMinutes:
+          description: How long the room or studio is booked for.
+          type: integer
+          format: int32
+          minimum: 15
+          maximum: 480
+          multipleOf: 15
+        kind: { $ref: '#/components/schemas/BookingKind' }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        requests:
+          description: What the customer asked for, in their words.
+          type: array
+          maxItems: 5
+          items: { type: string, maxLength: 200, pattern: *singleLine }
+        notes:
+          description: The venue's notes for the host. Null when there are none.
+          type: [string, 'null']
+          maxLength: 2000
+          pattern: '^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$'
+        hostName:
+          description: Replaced by host.displayName. Removed in version 2.
+          type: string
+          maxLength: 100
+          pattern: *singleLine
+          deprecated: true
+        createTime:
+          description: When the booking was made, in UTC.
+          type: string
+          format: date-time
+          maxLength: 33
+          readOnly: true
+      example:
+        id: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+        venueId: LDN001
+        customerId: 9b7e4c2a-1d3f-4a5b-8c6d-0e1f2a3b4c5d
+        host:
+          hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+          role: facilitator
+          displayName: Sam Rivera
+        startTime: '2026-11-03T10:30:00Z'
+        durationMinutes: 30
+        kind: video
+        status: confirmed
+        requests: [Share the slides beforehand]
+        notes: null
+        createTime: '2026-10-30T09:15:02Z'
+
+    BookingPage:
+      description: One page of bookings, earliest first.
+      type: object
+      required: [items, page, pageSize, totalCount]
+      properties:
+        items:
+          description: Up to pageSize bookings.
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/Booking' }
+        page:
+          description: The page returned, as asked for.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100000
+        pageSize:
+          description: The most items a page holds, as asked for or the default.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+        totalCount:
+          description: The items on every page together, for the filter given. The last page is ceil(totalCount / pageSize).
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 2147483647
+      example:
+        items:
+          - id: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+            venueId: LDN001
+            customerId: 9b7e4c2a-1d3f-4a5b-8c6d-0e1f2a3b4c5d
+            host:
+              hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+              role: facilitator
+              displayName: Sam Rivera
+            startTime: '2026-11-03T10:30:00Z'
+            durationMinutes: 30
+            kind: video
+            status: confirmed
+            createTime: '2026-10-30T09:15:02Z'
+        page: 1
+        pageSize: 20
+        totalCount: 1
+
+    CreateBooking:
+      description: What a client sends to book a room or studio. The service assigns the id and status.
+      type: object
+      required: [venueId, customerId, hostId, startTime, durationMinutes, kind]
+      additionalProperties: false
+      properties:
+        venueId: { $ref: '#/components/schemas/VenueId' }
+        customerId:
+          description: The customer's id in the customers service.
+          type: string
+          format: uuid
+          maxLength: 36
+        hostId:
+          description: Who runs the session.
+          type: string
+          format: uuid
+          maxLength: 36
+        startTime:
+          description: When the slot starts, in UTC. Must be a free slot.
+          type: string
+          format: date-time
+          maxLength: 33
+        durationMinutes:
+          description: How long to book, in steps of 15 minutes.
+          type: integer
+          format: int32
+          minimum: 15
+          maximum: 480
+          multipleOf: 15
+        kind: { $ref: '#/components/schemas/BookingKind' }
+        requests:
+          description: What the customer wants from the session, in their words.
+          type: array
+          maxItems: 5
+          items: { type: string, maxLength: 200, pattern: *singleLine }
+      example:
+        venueId: LDN001
+        customerId: 9b7e4c2a-1d3f-4a5b-8c6d-0e1f2a3b4c5d
+        hostId: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+        startTime: '2026-11-03T10:30:00Z'
+        durationMinutes: 30
+        kind: video
+
+    BookingPatch:
+      description: The fields to change. A field left out stays as it is; notes sent as null is cleared.
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        startTime:
+          description: The new start time, in UTC. Must be a free slot.
+          type: string
+          format: date-time
+          maxLength: 33
+        durationMinutes:
+          description: The new length, in steps of 15 minutes.
+          type: integer
+          format: int32
+          minimum: 15
+          maximum: 480
+          multipleOf: 15
+        hostId:
+          description: Moves the booking to another host.
+          type: string
+          format: uuid
+          maxLength: 36
+        kind: { $ref: '#/components/schemas/BookingKind' }
+        notes:
+          description: The venue's notes, or null to clear them.
+          type: [string, 'null']
+          maxLength: 2000
+          pattern: '^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$'
+      example:
+        startTime: '2026-11-03T11:30:00Z'
+
+    BookingSearch:
+      description: Who to search for. Personal data goes here, in the body, never in the URL.
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email:
+          description: The customer's email address, as they gave it when booking.
+          type: string
+          format: email
+          pattern: '^[^@\s]+@[^@\s]+$'
+          maxLength: 254
+        fromDate:
+          description: Only bookings on or after this day. Defaults to today.
+          type: string
+          format: date
+          maxLength: 10
+      example:
+        email: alex@example.com
+        fromDate: '2026-11-01'
+
+    Cancellation:
+      description: Who cancelled. The by field says which kind it is.
+      oneOf:
+        - $ref: '#/components/schemas/CustomerCancellation'
+        - $ref: '#/components/schemas/VenueCancellation'
+      discriminator:
+        propertyName: by
+        mapping:
+          customer: '#/components/schemas/CustomerCancellation'
+          venue: '#/components/schemas/VenueCancellation'
+      example: { by: customer, reason: Plans changed. }
+
+    CustomerCancellation:
+      description: The customer cancelled.
+      type: object
+      required: [by]
+      additionalProperties: false
+      properties:
+        by:
+          description: Always customer.
+          type: string
+          const: customer
+        reason:
+          description: The customer's reason, if they gave one.
+          type: string
+          maxLength: 200
+          pattern: *singleLine
+      example: { by: customer, reason: Plans changed. }
+
+    VenueCancellation:
+      description: The venue cancelled, and the customer needs offering another time.
+      type: object
+      required: [by, code]
+      additionalProperties: false
+      properties:
+        by:
+          description: Always venue.
+          type: string
+          const: venue
+        code:
+          description: Why the venue cancelled.
+          type: string
+          enum: [hostUnavailable, venueClosed, bookedInError]
+      example: { by: venue, code: venueClosed }
+
+    AttachmentUpload:
+      description: A file to attach, sent as multipart/form-data.
+      type: object
+      required: [file]
+      additionalProperties: false
+      properties:
+        file:
+          description: The file, a PDF, JPEG or PNG of up to 10 MB.
+          type: string
+          format: binary
+          maxLength: 10485760
+        title:
+          description: What the document is, such as Room layout.
+          type: string
+          maxLength: 200
+          pattern: *singleLine
+      example:
+        file: '%PDF-1.7'
+        title: Room layout
+
+    Attachment:
+      description: A document attached to a booking.
+      type: object
+      required: [id, mediaType, sizeBytes, uploadTime]
+      properties:
+        id:
+          description: Assigned by the service on upload.
+          type: string
+          format: uuid
+          maxLength: 36
+          readOnly: true
+        title:
+          description: What the document is, as given on upload.
+          type: string
+          maxLength: 200
+          pattern: *singleLine
+        mediaType:
+          description: The file's media type.
+          type: string
+          maxLength: 15
+          pattern: '^(application/pdf|image/jpeg|image/png)$'
+        sizeBytes:
+          description: The file's size.
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 10485760
+        uploadTime:
+          description: When the file was uploaded, in UTC.
+          type: string
+          format: date-time
+          maxLength: 33
+      example:
+        id: 4d5e6f7a-8b9c-4d0e-8f1a-2b3c4d5e6f7a
+        title: Room layout
+        mediaType: application/pdf
+        sizeBytes: 182044
+        uploadTime: '2026-10-30T09:40:12Z'
+
+    Reminder:
+      description: A booking coming up, sent to subscribers 24 hours before.
+      type: object
+      required: [bookingId, startTime]
+      additionalProperties: false
+      properties:
+        bookingId:
+          description: The booking's id. Read it with GetBooking for the rest.
+          type: string
+          format: uuid
+          maxLength: 36
+        startTime:
+          description: When the booking starts, in UTC.
+          type: string
+          format: date-time
+          maxLength: 33
+      example:
+        bookingId: 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73
+        startTime: '2026-11-03T10:30:00Z'
+
+    # The framework's error types, as ASP.NET Core writes them, the same as the template's contract.
+    ProblemDetails:
+      description: An error response in RFC 9457 problem details format. The body may carry more fields, such as traceId, which finds the request in the service's logs.
+      type: object
+      properties:
+        type: &problemType
+          description: A URI that names the kind of error. Today it links to the RFC 9110 section for the status code.
+          type: ['null', string]
+          format: uri-reference
+          maxLength: 2048
+        title: &problemTitle
+          description: A short summary of the kind of error, the same for every occurrence of it.
+          type: ['null', string]
+          maxLength: 4096
+          pattern: *singleLine
+        status: &problemStatus
+          description: The HTTP status code, repeated from the response.
+          type: ['null', integer, string]
+          format: int32
+          minimum: 100
+          maximum: 599
+          maxLength: 3
+          pattern: '^-?(?:0|[1-9]\d*)$'
+        detail: &problemDetail
+          <<: *problemTitle
+          description: What went wrong in this request, for a person to read.
+        instance: &problemInstance
+          <<: *problemType
+          description: A URI for this occurrence of the error.
+      example:
+        type: https://tools.ietf.org/html/rfc9110#section-15.5.5
+        title: Not Found
+        status: 404
+        detail: No booking has id 3f2a9c1e-7b4d-4e0a-8c5f-6d1b2a9e0c73.
+    HttpValidationProblemDetails:
+      description: Sent with 422 when a request is readable but breaks a rule. Lists every failure, not just the first.
+      type: object
+      properties:
+        type: { <<: *problemType }
+        title: { <<: *problemTitle }
+        status: { <<: *problemStatus }
+        detail: { <<: *problemDetail }
+        instance: { <<: *problemInstance }
+        errors:
+          description: The failure messages, keyed by the request field they apply to.
+          type: object
+          maxProperties: 32
+          additionalProperties:
+            type: array
+            maxItems: 32
+            items: { type: string, maxLength: 4096, pattern: *singleLine }
+      example:
+        type: https://tools.ietf.org/html/rfc9110#section-15.5.21
+        title: One or more validation errors occurred.
+        status: 422
+        errors:
+          durationMinutes: [The duration must be a multiple of 15 minutes.]

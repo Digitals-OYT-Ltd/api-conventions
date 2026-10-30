@@ -1,0 +1,37 @@
+# Digitals baseline ruleset for Spectral: the industry basics every event API must meet, whatever its
+# design. A valid AsyncAPI 2 or 3 document, documented operations, valid examples and schemas, and no
+# personal data in a channel address. Use it to audit an existing API; digitals.yaml adds the Digitals house
+# rules on top, and a new contract must pass that. Every finding fails dt-asyncapi lint, so a rule is either
+# on or off with the reason. See docs/api-conventions.md in csharp-api-template.
+extends:
+  - [spectral:asyncapi, all]
+functions: [messageExampleValid] # in functions/, beside this file
+rules:
+  # Not adopted, as for the HTTP APIs.
+  asyncapi-info-contact: off # contact is optional, decided 2026-10-29
+  asyncapi-info-contact-properties: off # contact is optional, decided 2026-10-29
+  asyncapi-info-license: off # license is optional, decided 2026-10-29
+  asyncapi-info-license-url: off # license is optional, decided 2026-10-29
+  asyncapi-servers: off # servers are optional, decided 2026-10-29
+  asyncapi-tags-alphabetical: off
+  asyncapi-latest-version: off # an existing API may stay on AsyncAPI 2; digitals.yaml turns it on
+
+  # Digitals rules.
+  dt-no-personal-data-in-channel:
+    description: Personal data travels in payloads, never in a channel address, where brokers and logs keep it
+    message: "Channel parameter '{{property}}' puts personal data in the address: send it in the payload"
+    given: $.channels[*].parameters[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: '/^(nhs|nhs[-_]?no|nhs[-_]?number|dob|date[-_]?of[-_]?birth|birth[-_]?date|post[-_]?code|zip[-_]?code|address|email|email[-_]?address|phone|phone[-_]?number|telephone|mobile|mobile[-_]?number|first[-_]?name|fore[-_]?name|given[-_]?name|last[-_]?name|surname|family[-_]?name|full[-_]?name|nino|ni[-_]?number|national[-_]?insurance[-_]?number)$/i'
+  dt-message-example-valid:
+    description: Every message example matches the message's payload and headers schemas
+    message: "{{error}}"
+    formats: [aas3] # asyncapi-message-examples covers AsyncAPI 2
+    given:
+      - $.components.messages[*]
+      - $.channels[*].messages[*]
+    severity: error
+    then: { function: messageExampleValid }

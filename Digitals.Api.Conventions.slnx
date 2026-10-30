@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Digitals.AsyncApi/Digitals.AsyncApi.csproj" />
+    <Project Path="src/Digitals.OpenApi/Digitals.OpenApi.csproj" />
+    <Project Path="src/Digitals.Protobuf/Digitals.Protobuf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Digitals.AsyncApi.Tests/Digitals.AsyncApi.Tests.csproj" />
+    <Project Path="tests/Digitals.OpenApi.Tests/Digitals.OpenApi.Tests.csproj" />
+    <Project Path="tests/Digitals.Protobuf.Tests/Digitals.Protobuf.Tests.csproj" />
+  </Folder>
+</Solution>

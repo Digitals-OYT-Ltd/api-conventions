@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Digitals.Testing" />
+	</ItemGroup>
+
+	<!-- Brings the tool, its buf configs and this machine's buf into the test output. -->
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Digitals.Protobuf\Digitals.Protobuf.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\examples\protobuf\**\*.proto" Link="examples/protobuf/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\..\docs\rules\protobuf.md" Link="docs/rules/protobuf.md" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+</Project>

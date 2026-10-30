@@ -1,0 +1,69 @@
+# Digitals ruleset for Spectral: the baseline (digitals-baseline.yaml) plus the Digitals house rules for
+# payload naming, bounds and documentation, the same as for the HTTP APIs. A new contract must pass it.
+# Rules the baseline sets keep that setting unless listed here. See docs/api-conventions.md in
+# csharp-api-template.
+extends:
+  - ./digitals-baseline.yaml
+rules:
+  asyncapi-latest-version: error # a new contract starts on the newest AsyncAPI
+
+  # Digitals rules.
+  dt-description:
+    description: Every channel, operation, message, schema and payload field has a description
+    message: "Add a description. Every channel, operation, message, schema and payload field has one"
+    given:
+      - $.channels[*]
+      - $.operations[*]
+      - $.components.messages[*]
+      - $.components.schemas[*]
+      - $..properties[*]
+    severity: error
+    then: { field: description, function: truthy }
+  dt-message-example:
+    description: Every message has an example, which asyncapi-message-examples then checks against its payload
+    message: "Add an example to the message's examples"
+    given: $.components.messages[*]
+    severity: error
+    then: { field: examples, function: truthy }
+  dt-property-casing:
+    description: Payload field names are camelCase, as in the HTTP APIs
+    message: "'{{property}}' is not camelCase"
+    given: $..properties[*]~
+    severity: error
+    then: { function: casing, functionOptions: { type: camel } }
+  dt-enum-casing:
+    description: An enum value in a payload or header is camelCase, as in the HTTP APIs. Binding enums such as a Kafka clientId keep the broker's own naming
+    message: "'{{value}}' is not camelCase"
+    given:
+      - $.components.schemas..[?(@ && @.type == 'string' && @.enum)].enum[*]
+      - $..payload..[?(@ && @.type == 'string' && @.enum)].enum[*]
+      - $..headers..[?(@ && @.type == 'string' && @.enum)].enum[*]
+    severity: error
+    then: { function: casing, functionOptions: { type: camel } }
+  dt-timestamp-name:
+    description: A timestamp's name ends in Time
+    message: "'{{property}}' is a date-time, so its name ends in Time, like createTime"
+    given: $..properties[?(@ && @.format == 'date-time')]~
+    severity: error
+    then: { function: pattern, functionOptions: { match: 'Time$' } }
+  dt-date-name:
+    description: A calendar date's name ends in Date
+    message: "'{{property}}' is a date, so its name ends in Date, like birthDate"
+    given: $..properties[?(@ && @.format == 'date')]~
+    severity: error
+    then: { function: pattern, functionOptions: { match: 'Date$' } }
+  dt-string-limit:
+    description: Every string has a maxLength, an enum or a const
+    message: "A string with no maxLength, enum or const"
+    given: $..[?(@ && @.type == 'string')]
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        schema: { anyOf: [{ required: [maxLength] }, { required: [enum] }, { required: [const] }] }
+  dt-array-limit:
+    description: Every array has a maxItems
+    message: "An array with no maxItems"
+    given: $..[?(@ && @.type == 'array')]
+    severity: error
+    then: { field: maxItems, function: defined }

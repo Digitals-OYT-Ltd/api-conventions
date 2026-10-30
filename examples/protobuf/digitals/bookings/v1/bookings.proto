@@ -1,0 +1,234 @@
+// Books, moves and cancels meeting rooms and studios at venues.
+//
+// A call fails with a gRPC status, never an error message in a response: INVALID_ARGUMENT for a field out of
+// range, NOT_FOUND, FAILED_PRECONDITION when the booking changed since it was read, and UNAUTHENTICATED or
+// PERMISSION_DENIED for the caller.
+syntax = "proto3";
+
+package digitals.bookings.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// Makes and reads bookings. Reads need the bookings.read scope and changes bookings.write.
+service BookingService {
+  // Lists a venue's bookings, earliest first, a page at a time.
+  rpc ListBookings(ListBookingsRequest) returns (ListBookingsResponse);
+
+  // Reads one booking.
+  rpc GetBooking(GetBookingRequest) returns (GetBookingResponse);
+
+  // Books a room or studio. Retrying with the same request_id returns the first result instead of booking twice.
+  rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse);
+
+  // Moves or changes a booking. Only the fields named in update_mask change.
+  rpc UpdateBooking(UpdateBookingRequest) returns (UpdateBookingResponse);
+
+  // Cancels a booking. Cancelling one already cancelled succeeds and changes nothing.
+  rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse);
+
+  // Streams each change to a venue's bookings as it happens, until the caller hangs up.
+  rpc WatchBookings(WatchBookingsRequest) returns (stream WatchBookingsResponse);
+
+  // Lists a venue's bookings without paging. Use ListBookings, which pages and filters.
+  rpc ListVenueBookings(ListVenueBookingsRequest) returns (ListVenueBookingsResponse) {
+    option deprecated = true;
+  }
+}
+
+// One booked slot in a room or studio, with a host.
+message Booking {
+  // Where the booking happens.
+  message InPerson {
+    // The room, as the venue names it.
+    string room = 1;
+  }
+
+  // A video call instead of a visit.
+  message Video {
+    // The link the customer opens. Valid from 15 minutes before the start.
+    string join_url = 1;
+  }
+
+  // The booking's ID, a UUID the service assigns.
+  string booking_id = 1;
+  // The venue's code, such as LDN001.
+  string venue_id = 2;
+  // The customer's ID in the customers service.
+  string customer_id = 3;
+  // When it starts.
+  google.protobuf.Timestamp start_time = 4;
+  // How long it lasts, from 15 minutes to 8 hours.
+  google.protobuf.Duration duration = 5;
+  // Where it is in its life.
+  BookingStatus status = 6;
+  // How the customer attends.
+  oneof attendance {
+    // At the venue.
+    InPerson in_person = 7;
+    // By video.
+    Video video = 8;
+  }
+  // What the customer asked for, in their words. Absent when they didn't say.
+  optional string request = 9;
+  // Labels the venue sets for its own reporting, such as "campaign": "autumn-2026".
+  map<string, string> labels = 10;
+  // The IDs of the documents attached to it.
+  repeated string attachment_ids = 11;
+  // Free text for the host. Use request, which the customer sees too.
+  string notes = 12 [deprecated = true];
+}
+
+// Where a booking is in its life.
+enum BookingStatus {
+  // Not set. The service never sends it.
+  BOOKING_STATUS_UNSPECIFIED = 0;
+  // Confirmed and still to happen.
+  BOOKING_STATUS_CONFIRMED = 1;
+  // Cancelled by the customer or the venue.
+  BOOKING_STATUS_CANCELLED = 2;
+  // The customer came.
+  BOOKING_STATUS_ATTENDED = 3;
+  // The customer didn't come and didn't cancel.
+  BOOKING_STATUS_NO_SHOW = 4;
+}
+
+// Asks for one page of a venue's bookings.
+message ListBookingsRequest {
+  // The venue's code.
+  string venue_id = 1;
+  // Only bookings in one of these statuses. Empty means every status.
+  repeated BookingStatus statuses = 2;
+  // Only bookings that start at or after this time. Absent means now.
+  google.protobuf.Timestamp from_time = 3;
+  // Which page to return, from 1. 0 means 1. A page past the last returns no items.
+  int32 page = 4;
+  // The most items to return, from 1 to 100. 0 means 20. Above 100 fails with INVALID_ARGUMENT.
+  int32 page_size = 5;
+}
+
+// One page of bookings.
+message ListBookingsResponse {
+  // The bookings on this page, earliest first.
+  repeated Booking items = 1;
+  // The page returned.
+  int32 page = 2;
+  // The most items a page holds, as asked for or the default.
+  int32 page_size = 3;
+  // The number of bookings on every page together.
+  int32 total_count = 4;
+}
+
+// Asks for one booking.
+message GetBookingRequest {
+  // The booking's ID.
+  string booking_id = 1;
+}
+
+// The booking asked for.
+message GetBookingResponse {
+  // The booking.
+  Booking booking = 1;
+  // Changes when the booking does. Send it back in UpdateBookingRequest.
+  string etag = 2;
+}
+
+// Asks for a new booking.
+message CreateBookingRequest {
+  // A UUID the caller picks. A retry with the same one returns the first result.
+  string request_id = 1;
+  // The venue's code.
+  string venue_id = 2;
+  // The customer's ID in the customers service.
+  string customer_id = 3;
+  // When it starts. Must be in the future.
+  google.protobuf.Timestamp start_time = 4;
+  // How long it lasts.
+  google.protobuf.Duration duration = 5;
+  // What the customer wants from the session.
+  optional string request = 6;
+}
+
+// The booking made.
+message CreateBookingResponse {
+  // The booking, with the ID the service assigned.
+  Booking booking = 1;
+}
+
+// Asks to change a booking.
+message UpdateBookingRequest {
+  // The booking with its new values. Only the fields in update_mask are read.
+  Booking booking = 1;
+  // The fields to change, such as start_time or duration.
+  google.protobuf.FieldMask update_mask = 2;
+  // The etag from the last read. FAILED_PRECONDITION when the booking changed since.
+  string etag = 3;
+}
+
+// The booking after the change.
+message UpdateBookingResponse {
+  // The booking.
+  Booking booking = 1;
+  // The new etag.
+  string etag = 2;
+}
+
+// Asks to cancel a booking.
+message CancelBookingRequest {
+  // The booking's ID.
+  string booking_id = 1;
+  // Who cancelled and why.
+  oneof cancelled_by {
+    // The customer cancelled.
+    CustomerCancellation customer = 2;
+    // The venue cancelled.
+    VenueCancellation venue = 3;
+  }
+}
+
+// A cancellation the customer asked for.
+message CustomerCancellation {
+  // Why, in the customer's words.
+  string reason = 1;
+}
+
+// A cancellation the venue made.
+message VenueCancellation {
+  // Why the venue cancelled.
+  string reason = 1;
+  // Whether the venue offers another slot. The customer gets a message either way.
+  bool rebook_offered = 2;
+}
+
+// The booking after cancelling.
+message CancelBookingResponse {
+  // The booking, now cancelled.
+  Booking booking = 1;
+}
+
+// Asks to follow a venue's bookings.
+message WatchBookingsRequest {
+  // The venue's code.
+  string venue_id = 1;
+}
+
+// One change to a booking.
+message WatchBookingsResponse {
+  // The booking after the change.
+  Booking booking = 1;
+  // When the change happened.
+  google.protobuf.Timestamp change_time = 2;
+}
+
+// Asks for every booking at one venue.
+message ListVenueBookingsRequest {
+  // The venue's code.
+  string venue_id = 1;
+}
+
+// Every booking at the venue.
+message ListVenueBookingsResponse {
+  // The bookings, earliest first.
+  repeated Booking bookings = 1;
+}

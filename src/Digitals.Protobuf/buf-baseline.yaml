@@ -1,0 +1,14 @@
+# Digitals baseline for buf: the industry basics every .proto API must meet, whatever its design. buf's
+# BASIC rules: one package per directory, files and types named in the protobuf style guide's casing, no
+# unused imports. Use it to audit an existing API; buf.yaml adds the Digitals house rules on top, and a new
+# contract must pass that. dt-protobuf passes it to buf as --config, so a module's own buf.yaml is ignored.
+# Version v1, because buf reads a v1 file passed by --config as the config for whatever input it lints.
+version: v1
+lint:
+  use:
+    - BASIC
+breaking:
+  # A change that breaks code generated from the old files, the strictest of buf's levels. It includes
+  # everything that breaks the wire and JSON formats.
+  use:
+    - FILE

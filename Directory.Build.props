@@ -1,0 +1,37 @@
+<Project>
+
+	<!-- Solution-wide compiler and analyzer baseline, same as csharp-api-template. -->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<LangVersion>14</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<WarningsAsErrors>nullable</WarningsAsErrors>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+		<!-- Pin the ruleset, not the SDK (csharp/pin-analyzer-ruleset) -->
+		<AnalysisLevel>10.0</AnalysisLevel>
+		<AnalysisMode>Recommended</AnalysisMode>
+	</PropertyGroup>
+
+	<!-- Digitals.Analyzers: the org-wide C# rules (DT0####). It updates with a version bump in Directory.Packages.props. -->
+	<ItemGroup>
+		<PackageReference Include="Digitals.Analyzers" PrivateAssets="all" />
+	</ItemGroup>
+
+	<!-- Each tool ships from its own tag (openapi/v*, asyncapi/v*, protobuf/v*), set as MinVerTagPrefix in its csproj. -->
+	<PropertyGroup>
+		<Authors>Digitals OYT Ltd</Authors>
+		<Company>Digitals OYT Ltd</Company>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Copyright>Copyright (c) Digitals OYT Ltd 2026</Copyright>
+		<PackageProjectUrl>https://github.com/Digitals-OYT-Ltd/api-conventions</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Digitals-OYT-Ltd/api-conventions</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+	</PropertyGroup>
+
+</Project>

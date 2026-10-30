@@ -1,0 +1,24 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+
+[*.{props,csproj}]
+indent_style = space
+indent_size = 4
+tab_width = 4
+
+[*.{cs,vb,cshtml}]
+indent_style = space
+indent_size = 4
+tab_width = 4
+# editor ruler only — the build gate is RCS0056 in the package, same 120
+max_line_length = 120
+
+[tests/Digitals.OpenApi.Tests/RulesetTests.cs]
+# RCS0056: each fixture is a line of flow-style YAML that vacuum reads as written, so wrapping it would
+# change the contract under test.
+dotnet_diagnostic.RCS0056.severity = none

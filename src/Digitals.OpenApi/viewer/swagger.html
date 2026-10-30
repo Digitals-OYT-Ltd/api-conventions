@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Written by dt-openapi swagger. Swagger UI and the contract are inlined, so the page works offline. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%TITLE%</title>
+<style>%STYLES%</style>
+<style>
+  body { margin: 0; }
+  /* The contract's URL is the made-up one below, so don't show it under the title. */
+  .swagger-ui .info hgroup.main a.link { display: none; }
+</style>
+<script>
+  // Swagger UI resolves each $ref of an OpenAPI 3.1 contract by fetching the contract's http(s) URL again,
+  // and a page opened from a file has none. So the contract gets a URL that can never resolve (.invalid is
+  // reserved), and fetch answers it from the inlined text. Every other request, Try it out included, goes
+  // to the network as before. This runs before Swagger UI loads, so Swagger UI sees the wrapped fetch.
+  const contractUrl = "https://contract.invalid/openapi";
+  const contract = %SPEC%;
+  const networkFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const url = String(input instanceof Request ? input.url : input).split("#")[0];
+    return url === contractUrl
+      ? Promise.resolve(new Response(contract, { headers: { "Content-Type": "text/yaml" } }))
+      : networkFetch(input, init);
+  };
+</script>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script>%SCRIPT%</script>
+<script>
+  // validatorUrl null keeps the page from calling swagger.io. showCommonExtensions shows a parameter's
+  // minimum, maximum, length and pattern, which Swagger UI otherwise shows only on schemas.
+  SwaggerUIBundle({
+    url: contractUrl,
+    dom_id: "#swagger-ui",
+    deepLinking: true,
+    validatorUrl: null,
+    showCommonExtensions: true,
+    defaultModelsExpandDepth: 1,
+    displayRequestDuration: true,
+  });
+</script>
+</body>
+</html>

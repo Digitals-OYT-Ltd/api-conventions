@@ -1,0 +1,72 @@
+<Project>
+
+	<!--
+		vacuum (lint, reports) and oasdiff (diff, breaking changes) ship inside the tool as native binaries.
+		Each RID-specific package downloads its own pair at build time, checks the SHA-256 from the release
+		page, and copies the binary and its licence to native/. A plain build uses the machine's RID.
+		To upgrade, change a version and every hash for it, then run `just test`.
+	-->
+	<PropertyGroup>
+		<VacuumVersion>0.33.0</VacuumVersion>
+		<OasdiffVersion>1.33.0</OasdiffVersion>
+		<_NativeRid>$(RuntimeIdentifier)</_NativeRid>
+		<_NativeRid Condition="'$(_NativeRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</_NativeRid>
+		<_NativeExe Condition="$(_NativeRid.StartsWith('win'))">.exe</_NativeExe>
+		<_NativeCache>$(BaseIntermediateOutputPath)native/</_NativeCache>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="osx-arm64" Asset="darwin_arm64" Archive="vacuum_$(VacuumVersion)_darwin_arm64.tar.gz" Sha256="de5410bfc557fd9f81a2a3bb6588674d350ba274ed2ddcc3b4ecd3e77968d63b" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="osx-x64" Asset="darwin_x86_64" Archive="vacuum_$(VacuumVersion)_darwin_x86_64.tar.gz" Sha256="0719f511c497eaa3b7659d13e3b0ce10c2cbdae8fcc735e676cef98b6fb37f91" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="linux-arm64" Asset="linux_arm64" Archive="vacuum_$(VacuumVersion)_linux_arm64.tar.gz" Sha256="87a340ced4fe0a5d4068ef43d75269a3a11ea38fc6d1e9e9c29df9aa6c6be9b4" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="linux-x64" Asset="linux_x86_64" Archive="vacuum_$(VacuumVersion)_linux_x86_64.tar.gz" Sha256="b4de4f93784194dce3af3a554abca8abdefb9529e6d4ed1ad5eb26cfbb0298d7" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="win-arm64" Asset="windows_arm64" Archive="vacuum_$(VacuumVersion)_windows_arm64.tar.gz" Sha256="c4d0b36e45bb0b52e565c5de5bc692046c2d3d730a814f56fc9312ecd37c982b" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="win-x64" Asset="windows_x86_64" Archive="vacuum_$(VacuumVersion)_windows_x86_64.tar.gz" Sha256="9bf87b10a1074e451d5e040b4e6825ff19a411b8938dfb951c1b074fcb32a685" />
+
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="osx-arm64" Asset="darwin_all" Archive="oasdiff_$(OasdiffVersion)_darwin_all.tar.gz" Sha256="2a479337c15afdcbf0b1e89c0b4d0cf0176472dbc11483358fed1f831d1e46c5" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="osx-x64" Asset="darwin_all" Archive="oasdiff_$(OasdiffVersion)_darwin_all.tar.gz" Sha256="2a479337c15afdcbf0b1e89c0b4d0cf0176472dbc11483358fed1f831d1e46c5" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="linux-arm64" Asset="linux_arm64" Archive="oasdiff_$(OasdiffVersion)_linux_arm64.tar.gz" Sha256="4ae3c362d6074d919aada2dea82d0ee84366591600384455d0bdc658ddf8f7ae" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="linux-x64" Asset="linux_amd64" Archive="oasdiff_$(OasdiffVersion)_linux_amd64.tar.gz" Sha256="43a4e328e2d13ba1552d760aa68d2485c75c5621f309f6ff64ae895188345247" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="win-arm64" Asset="windows_arm64" Archive="oasdiff_$(OasdiffVersion)_windows_arm64.tar.gz" Sha256="d51bd1ea4b05ff9b314245d1e97f84c222b22ce34a930e8e305c68c32edbe951" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="win-x64" Asset="windows_amd64" Archive="oasdiff_$(OasdiffVersion)_windows_amd64.tar.gz" Sha256="22f98c7247075f8a446e783595802d6d38637de1760df264f3d4b3309f766c5b" />
+	</ItemGroup>
+
+	<Target Name="_DigitalsSelectNativeTools">
+		<ItemGroup>
+			<_NativeTool Include="@(_NativeAsset)" Condition="'%(Rid)' == '$(_NativeRid)'" />
+		</ItemGroup>
+		<Error Condition="'@(_NativeTool->Count())' != '2'" Text="No vacuum and oasdiff builds for RID '$(_NativeRid)'. Supported: @(_NativeAsset->'%(Rid)'->Distinct())." />
+	</Target>
+
+	<!-- Runs once per tool. -->
+	<Target Name="_DigitalsFetchNativeTool" DependsOnTargets="_DigitalsSelectNativeTools" Outputs="%(_NativeTool.Identity)">
+		<PropertyGroup>
+			<_Archive>$(_NativeCache)%(_NativeTool.Archive)</_Archive>
+			<_Expected>%(_NativeTool.Sha256)</_Expected>
+		</PropertyGroup>
+
+		<DownloadFile Condition="!Exists('$(_Archive)')"
+			SourceUrl="https://github.com/%(_NativeTool.Repository)/releases/download/v%(_NativeTool.Version)/%(_NativeTool.Archive)"
+			DestinationFolder="$(_NativeCache)" />
+
+		<GetFileHash Files="$(_Archive)" Algorithm="SHA256">
+			<Output TaskParameter="Hash" PropertyName="_Actual" />
+		</GetFileHash>
+		<Delete Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Files="$(_Archive)" />
+		<Error Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Text="%(_NativeTool.Archive) has SHA-256 $(_Actual), expected $(_Expected). Deleted it; the next build downloads it again." />
+
+		<MakeDir Directories="$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/" />
+		<Exec Condition="!Exists('$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/%(_NativeTool.Identity)$(_NativeExe)')"
+			Command="tar -xzf &quot;$(_Archive)&quot; -C &quot;$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/.&quot;" />
+	</Target>
+
+	<Target Name="DigitalsAddNativeTools" BeforeTargets="AssignTargetPaths" DependsOnTargets="_DigitalsFetchNativeTool">
+		<ItemGroup>
+			<None Include="$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/%(_NativeTool.Identity)$(_NativeExe)"
+				Link="native/%(_NativeTool.Identity)$(_NativeExe)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+			<None Include="$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/LICENSE"
+				Link="native/%(_NativeTool.Identity).LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		</ItemGroup>
+	</Target>
+
+</Project>

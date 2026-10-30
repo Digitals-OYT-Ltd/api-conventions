@@ -1,0 +1,402 @@
+# Digitals ruleset for vacuum: the baseline (digitals-baseline.yaml) plus the Digitals house rules for
+# resources, naming, paging, concurrency, errors and documentation. A new contract must pass it. Built-in
+# rules the baseline sets keep that setting unless listed here. See docs/api-conventions.md.
+# vacuum drops the OWASP rules of a ruleset extended by file, so spectral:owasp is listed again. The
+# baseline's settings for them still apply.
+extends:
+  - ./digitals-baseline.yaml
+  - [spectral:owasp, all]
+rules:
+  # House style the baseline leaves off.
+  no-http-verbs-in-path: error
+  operation-singular-tag: error
+  tag-description: error
+
+  # Replaced by a stricter dt- rule below.
+  owasp-string-limit: off # dt-string-limit, which checks responses too
+  owasp-array-limit: off # dt-array-limit, which checks responses too
+  operation-description: off # dt-description, which doesn't accept a summary instead
+  operation-operationId-valid-in-url: off # dt-operation-id-casing
+
+  # Undecided: docs/api-conventions.md Part 2.
+
+  # Digitals rules.
+  dt-path-version:
+    description: A path carries exactly one version segment, 'v' and a whole number from 1
+    message: "Path '{{value}}' needs one version segment like 'v1'"
+    given: $.paths[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '^(/([^v/][^/]*|v|v[^0-9/][^/]*))*/v[1-9][0-9]*(/([^v/][^/]*|v|v[^0-9/][^/]*))*$' }
+  dt-path-segments:
+    description: Path segments are lowercase kebab-case nouns or {parameters}, optionally ending in a :custom-method
+    message: "Path '{{value}}' has a segment that is not lowercase kebab-case"
+    given: $.paths[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '^(/(v[0-9][^/]*|[a-z0-9]+(-[a-z0-9]+)*(:[a-z0-9]+(-[a-z0-9]+)*)?|\{[^{}/]+\}(:[a-z0-9]+(-[a-z0-9]+)*)?))+$' }
+  dt-path-word-count:
+    description: A resource name or custom method verb is at most two words
+    message: "Path '{{value}}' has a name of more than two words"
+    given: $.paths[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { notMatch: '[a-z0-9]+-[a-z0-9]+-[a-z0-9]+' }
+  dt-path-id:
+    description: A path parameter names its resource and ends in Id, never a bare id
+    message: "Path '{{value}}' has a parameter that doesn't name its resource. Use {submissionId}, not {id} or {submission}"
+    given: $.paths[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '^[^{]*(\{[a-z][a-zA-Z0-9]*Id\}[^{]*)*$' }
+  dt-path-depth:
+    description: A path has at most three parameters; nesting deeper means a child should be a top-level resource
+    message: "Path '{{value}}' has more than three parameters. Nest only by ownership, and make a deeper child a top-level resource filtered by query"
+    given: $.paths[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { notMatch: '(\{[^{}/]+\}[^{}]*){4}' }
+  dt-no-http-verb-action:
+    description: A custom method isn't named after an HTTP method; the HTTP method already says that
+    message: "Path '{{value}}' has a custom method named after an HTTP method: use the method itself on the resource"
+    given: $.paths[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { notMatch: '(?i):(get|put|post|delete|patch|head|options|trace)(/|$)' }
+  dt-parameter-casing:
+    description: Path and query parameter names are camelCase
+    message: "Parameter '{{value}}' is not camelCase"
+    given: $.paths[*]..parameters[?(@.in == 'path' || @.in == 'query')].name
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '^[a-z][a-zA-Z0-9]*$' }
+  dt-description:
+    description: Everything OpenAPI lets you describe has a description
+    message: "Add a description. Every operation, request body, header, schema, property, security scheme and server has one"
+    given:
+      - $.paths[*][get,put,post,delete,options,head,patch,trace]
+      - $.paths[*][*].requestBody
+      - $.paths[*][*].responses[*].headers[*]
+      - $.paths..schema..properties[*]
+      - $.components.schemas[*]
+      - $.components.schemas..properties[*]
+      - $.components.requestBodies[*]
+      - $.components.headers[*]
+      - $.components.securitySchemes[*]
+      - $.servers[*]
+    severity: error
+    then: { field: description, function: truthy }
+  dt-example:
+    description: Every schema, parameter, header and body has an example
+    message: "Add an example. Every component schema, parameter, header and request or response body has one"
+    given:
+      - $.components.schemas[*]
+      - $.paths..parameters[*]
+      - $.paths..headers[*]
+      - $.components.parameters[*]
+      - $.components.headers[*]
+      - $.paths[*][*].requestBody.content[*]
+      - $.paths[*][*].responses[*].content[*]
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          anyOf:
+            - required: [example]
+            - required: [examples]
+            - required: [$ref]
+            # vacuum resolves a body's $ref before this runs, so a body passes on its schema's example.
+            - required: [schema]
+              properties:
+                schema: { anyOf: [{ required: [example] }, { required: [examples] }, { required: [$ref] }] }
+  dt-problem-json:
+    description: Every 4xx and 5xx response has an application/problem+json body and nothing else
+    message: "Every error response has exactly one body, application/problem+json: {{error}}"
+    given: $.paths[*][*].responses
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          type: object
+          patternProperties:
+            '^[45]':
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: object
+                  required: [application/problem+json]
+                  additionalProperties: false
+                  properties: { application/problem+json: {} }
+  # The function is functions/errorExample.js. dt-example lets a body pass on its schema's example, which
+  # for an error is some other status's.
+  dt-error-example:
+    description: Every error response has its own example, with status equal to the response code
+    given: $.paths[*][*].responses
+    severity: error
+    then: { function: errorExample }
+  dt-no-bare-array-response:
+    description: A success response wraps a list in an object, so paging can be added later
+    message: "A success response is a bare array: return an object holding the items. {{error}}"
+    given: $.paths[*][*].responses
+    severity: error
+    resolved: true
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          type: object
+          patternProperties:
+            '^2':
+              properties:
+                content:
+                  additionalProperties:
+                    properties:
+                      schema:
+                        not:
+                          anyOf:
+                            - { properties: { type: { const: array } }, required: [type] }
+                            - { properties: { type: { type: array, contains: { const: array } } }, required: [type] }
+  # Optimistic concurrency, RFC 9110. An operation that may overwrite without a check says why in
+  # x-dt-unconditional-write, which dt-openapi diff ignores.
+  dt-conditional-write:
+    description: A PUT, PATCH or DELETE requires If-Match and can answer 412 and 428, or says why it doesn't
+    message: "A PUT, PATCH or DELETE declares a required If-Match header and 412 and 428 responses, or x-dt-unconditional-write with the reason"
+    given: $.paths[*][put,patch,delete]
+    severity: error
+    resolved: true
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          if: { required: [x-dt-unconditional-write] }
+          then: { properties: { x-dt-unconditional-write: { type: string, minLength: 1 } } }
+          else:
+            required: [parameters, responses]
+            properties:
+              parameters: { contains: { required: [name, in, required], properties: { name: { pattern: '^[Ii][Ff]-[Mm][Aa][Tt][Cc][Hh]$' }, in: { const: header }, required: { const: true } } } }
+              responses: { required: ['412', '428'] }
+  dt-idempotent-create:
+    description: A POST on a collection requires an Idempotency-Key header and can answer 400 and 422, or says why it doesn't
+    message: "A POST on a collection declares a required Idempotency-Key header and 400 and 422 responses, or x-dt-no-idempotency-key with the reason"
+    given: "$.paths[?(@property.match(/^[^:]*$/))].post"
+    severity: error
+    resolved: true
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          if: { required: [x-dt-no-idempotency-key] }
+          then: { properties: { x-dt-no-idempotency-key: { type: string, minLength: 1 } } }
+          else:
+            required: [parameters, responses]
+            properties:
+              parameters: { contains: { required: [name, in, required], properties: { name: { pattern: '^[Ii][Dd][Ee][Mm][Pp][Oo][Tt][Ee][Nn][Cc][Yy]-[Kk][Ee][Yy]$' }, in: { const: header }, required: { const: true } } } }
+              responses: { required: ['400', '422'] }
+  dt-etag-response:
+    description: A resource with a conditional write returns its version in an ETag header
+    message: "A GET on a resource with a PUT, PATCH or DELETE declares an ETag header on its 200"
+    given: $.paths[*]
+    severity: error
+    resolved: true
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          if:
+            required: [get]
+            anyOf:
+              - { required: [put], properties: { put: { not: { required: [x-dt-unconditional-write] } } } }
+              - { required: [patch], properties: { patch: { not: { required: [x-dt-unconditional-write] } } } }
+              - { required: [delete], properties: { delete: { not: { required: [x-dt-unconditional-write] } } } }
+          then:
+            properties:
+              get:
+                required: [responses]
+                properties:
+                  responses:
+                    required: ['200']
+                    properties:
+                      '200': { required: [headers], properties: { headers: { anyOf: [ { required: [ETag] }, { required: [etag] } ] } } }
+  # vacuum's owasp-string-limit and owasp-array-limit check request schemas only. These check
+  # every schema in both directions. A root-level $.. path reports the wrong node, so each path
+  # starts at components.schemas or paths. vacuum shortens the reported path for a schema
+  # inline under paths; its line is right.
+  dt-string-limit:
+    description: Every string has a maximum length
+    message: "A string needs maxLength, enum or const"
+    given:
+      - $.components.schemas[*]
+      - $.components.schemas..properties[*]
+      - $.components.schemas..items
+      - $.components.schemas..additionalProperties
+      - $.paths..parameters[*].schema
+      - $.paths..content[*].schema
+      - $.paths..headers[*].schema
+      - $.paths..schema..properties[*]
+      - $.paths..schema..items
+      - $.paths..schema..additionalProperties
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          if: { required: [type], properties: { type: { anyOf: [ { const: string }, { type: array, contains: { const: string } } ] } } }
+          then: { anyOf: [ { required: [maxLength] }, { required: [enum] }, { required: [const] } ] }
+  dt-array-limit:
+    description: Every array has a maximum size
+    message: "An array needs maxItems"
+    given:
+      - $.components.schemas[*]
+      - $.components.schemas..properties[*]
+      - $.components.schemas..items
+      - $.components.schemas..additionalProperties
+      - $.paths..parameters[*].schema
+      - $.paths..content[*].schema
+      - $.paths..headers[*].schema
+      - $.paths..schema..properties[*]
+      - $.paths..schema..items
+      - $.paths..schema..additionalProperties
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          if: { required: [type], properties: { type: { anyOf: [ { const: array }, { type: array, contains: { const: array } } ] } } }
+          then: { required: [maxItems] }
+  dt-property-casing:
+    description: Schema property names are camelCase
+    message: "Property '{{value}}' is not camelCase"
+    given: $..properties[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '^[a-z][a-zA-Z0-9]*$' }
+  dt-no-integer-enum:
+    description: An enum travels as its string name, never an ordinal, so a named schema is never a bare integer
+    message: "Schema '{{property}}' is an integer: send enums by name"
+    given: $.components.schemas[?(@.type == 'integer' && !@.properties)]
+    severity: error
+    then: { function: falsy }
+  dt-enum-casing:
+    description: Enum values are camelCase strings
+    message: "Enum value '{{value}}' is not camelCase"
+    given: $..[?(@.enum && (@.type == 'string' || @.type == null))].enum[*]
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '^[a-z][a-zA-Z0-9]*$' }
+  dt-request-media-type:
+    description: Requests are JSON (or merge-patch, multipart, octet-stream)
+    message: "Request body media type '{{value}}' is not accepted"
+    given: $.paths[*][*].requestBody.content[*]~
+    severity: error
+    then:
+      function: enumeration
+      functionOptions: { values: [application/json, application/merge-patch+json, multipart/form-data, application/octet-stream] }
+  dt-paging-in-query:
+    description: Paging travels in the query string on every list, a POST :search included, never in a request body
+    message: "'{{value}}' is a paging field, so it goes in the query string, like '?pageSize=50', not in the body"
+    given: $.paths[*][*].requestBody.content[*].schema.properties[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { notMatch: '^(page([A-Z][a-zA-Z]*)?|maxPageSize|cursor|offset|skip|top|take)$' }
+  dt-operation-id-casing:
+    description: An operationId is a PascalCase verb and noun with no Async ending
+    message: "operationId '{{value}}' must be PascalCase with no Async ending, like 'CreateNote'"
+    given: $.paths[*][*].operationId
+    severity: error
+    then:
+      - function: pattern
+        functionOptions: { match: '^[A-Z][a-zA-Z0-9]*$' }
+      - function: pattern
+        functionOptions: { notMatch: 'Async$' }
+  dt-timestamp-name:
+    description: A timestamp (format date-time) is named ...Time
+    message: "Timestamp '{{value}}' must end in Time, like 'createTime'"
+    given: $..properties[?(@.format == 'date-time')]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '(Time|^time)$' }
+  dt-date-name:
+    description: A calendar date (format date) is named ...Date
+    message: "Date '{{value}}' must end in Date, like 'birthDate'"
+    given: $..properties[?(@.format == 'date')]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { match: '(Date|^date)$' }
+  # A name filter with function: schema and no field reports the property, names it, and sees a value
+  # that comes through a YAML anchor or merge. A key filter on the value (?(@.format != 'date')]~) doesn't.
+  dt-time-suffix-format:
+    description: A property named ...Time is a timestamp (format date-time) or a time of day (format time)
+    message: "'{{property}}' is named like a timestamp, so it needs format date-time, or time for a time of day"
+    given: $..properties[?(@property.match(/(Time|^time)$/))]
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema: { required: [format], properties: { format: { enum: [date-time, time] } } }
+  dt-date-suffix-format:
+    description: A property named ...Date is a calendar date (format date)
+    message: "'{{property}}' is named like a calendar date, so it needs format date"
+    given: $..properties[?(@property.match(/(Date|^date)$/))]
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema: { required: [format], properties: { format: { const: date } } }
+  dt-unit-integer:
+    description: A property named ...Milliseconds, ...Seconds, ...Minutes, ...Hours, ...Days, ...Months, ...Years or ...Bytes is an integer in that unit
+    message: "'{{property}}' is named for a unit, so it must be an integer, like 'timeoutSeconds'"
+    given: $..properties[?(@property.match(/(Milliseconds|Seconds|Minutes|Hours|Days|Months|Years|Bytes|^milliseconds|^seconds|^minutes|^hours|^days|^months|^years|^bytes)$/))]
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema: { required: [type], properties: { type: { enum: [integer, [integer, 'null'], ['null', integer]] } } }
+  dt-unit-name:
+    description: A length of time names its unit with an allowed ending, never an abbreviation, Weeks, or a bare Timeout or Duration
+    message: "Property '{{value}}' doesn't name its unit, or abbreviates it. End it in Milliseconds, Seconds, Minutes, Hours, Days, Months or Years, like 'timeoutSeconds'"
+    given: $..properties[*]~
+    severity: error
+    then:
+      function: pattern
+      functionOptions: { notMatch: '(Duration|Timeout|Ttl|Delay|Millis|Ms|Secs|Mins|Weeks|Microseconds|Nanoseconds|^duration|^timeout|^ttl|^delay)$' }
+  dt-no-duration-string:
+    description: A length of time is an integer named by its unit, never a TimeSpan string or an ISO 8601 duration
+    message: "This is a TimeSpan or an ISO 8601 duration. Send an integer named by its unit instead, like 'timeoutSeconds'"
+    given:
+      - $..properties[*]
+      - $.paths..parameters[*].schema
+    severity: error
+    then:
+      - field: format
+        function: pattern
+        functionOptions: { notMatch: '^duration$' }
+      # The pattern ASP.NET writes for a TimeSpan: ^-?(\d+\.)?\d{2}:\d{2}:\d{2}(\.\d{1,7})?$
+      - field: pattern
+        function: pattern
+        functionOptions: { notMatch: '\\d\{2\}:\\d\{2\}:\\d\{2\}' }

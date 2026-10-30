@@ -1,0 +1,128 @@
+# AsyncApi (dt-asyncapi): validates every change that touches it, and publishes it to nuget.org on an
+# asyncapi/v* tag. The other tools have their own workflows and tags, so each releases on its own.
+#
+# Versioning: MinVer with tag prefix `asyncapi/v` (MinVerTagPrefix in the csproj). Tag asyncapi/v1.2.0 packs
+# 1.2.0. Releasing is `git tag asyncapi/v1.2.0 && git push origin asyncapi/v1.2.0`.
+#
+# Auth: nuget.org Trusted Publishing (OIDC), no long-lived API key. One-time setup on nuget.org
+# (Account > Trusted Publishing > add policy): owner Digitals-OYT-Ltd, repository api-conventions,
+# workflow file asyncapi.yml, environment empty. Each tool's workflow needs its own policy. Then add the
+# repository secret NUGET_USER: the nuget.org profile name, not an email.
+name: AsyncApi
+
+on:
+  push:
+    branches: [main]
+    tags: ['asyncapi/v*']
+    # GitHub doesn't evaluate path filters on a tag push, so a tag always runs.
+    paths: &paths
+      - src/Digitals.AsyncApi/**
+      - tests/Digitals.AsyncApi.Tests/**
+      - src/ViewerPage.cs
+      - src/NativeBinaries.targets
+      - src/WebAssets.targets
+      - examples/asyncapi.yaml
+      - Directory.Build.props
+      - Directory.Packages.props
+      - global.json
+      - nuget.config
+      - .editorconfig
+      - scripts/**
+      - .github/workflows/asyncapi.yml
+  pull_request:
+    branches: [main]
+    paths: *paths
+  # A manual re-run from the Actions tab. Select the tag as the ref, never a branch: on a branch MinVer
+  # packs a prerelease and nothing publishes.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v5
+        with:
+          # MinVer needs the tags; a shallow clone versions everything as 0.0.0-alpha.
+          fetch-depth: 0
+
+      - name: ⚙️ Use .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      # The tool packs once per platform with that platform's binaries, so keep the downloads between
+      # runs. A version or hash change changes the key.
+      - name: 💾 Cache Bundled Binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/Digitals.AsyncApi/obj/native/
+            src/Digitals.AsyncApi/obj/web/
+          key: asyncapi-native-${{ hashFiles('src/*.targets', 'src/Digitals.AsyncApi/*.csproj') }}
+
+      - name: 🎨 Format Check
+        run: dotnet format --verify-no-changes --include src/Digitals.AsyncApi/ tests/Digitals.AsyncApi.Tests/ src/ViewerPage.cs
+
+      - name: 🔬 Tests + Coverage Gate
+        shell: pwsh
+        run: ./scripts/test-unit.ps1 -Package AsyncApi
+
+      - name: 🗜️ Build and Pack
+        shell: pwsh
+        run: ./scripts/pack.ps1 -Package AsyncApi
+
+      - name: 📤 Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: asyncapi-nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/asyncapi/v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC token for NuGet/login
+      contents: write   # the GitHub Release
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Download Package
+        uses: actions/download-artifact@v4
+        with:
+          name: asyncapi-nupkg
+          path: artifacts
+
+      # nuget.org's temporary API key lives for an hour, so ask for it just before the push.
+      - name: 🔐 Authenticate to NuGet (OIDC -> short-lived API key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      # The tag fixes the version, so a re-run on the same tag skips what is already there.
+      - name: 🚀 Push to nuget.org
+        run: >-
+          dotnet nuget push artifacts/*.nupkg
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      # The notes start at this tool's previous tag, not whichever tool released last. Skipped when the
+      # tag already has a release.
+      - name: 🏷️ Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then exit 0; fi
+          previous=$(git describe --tags --abbrev=0 --match 'asyncapi/v*' "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes \
+            ${previous:+--notes-start-tag "$previous"} artifacts/*.nupkg

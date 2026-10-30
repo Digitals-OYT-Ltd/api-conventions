@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Digitals.Testing" />
+	</ItemGroup>
+
+	<!-- Brings the tool, its rulesets and this machine's Spectral into the test output. -->
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Digitals.AsyncApi\Digitals.AsyncApi.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\examples\asyncapi.yaml" Link="examples/asyncapi.yaml" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\..\docs\rules\asyncapi.md" Link="docs/rules/asyncapi.md" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,67 @@
+<Project>
+
+	<!--
+		Bundles single-file native binaries, for tools whose releases ship one executable per platform (buf,
+		Spectral, protoc-gen-doc). A project lists one _NativeDownload per file: Rid (or "any"), Url and
+		Sha256, and Executable="true" for a binary. When the release is a .tar.gz, Extract names the file to
+		take from it, and Sha256 is the archive's. Each RID-specific package downloads its own files at build
+		time, checks the SHA-256 against the release page, and copies them to native/. A plain build uses the
+		machine's RID. Digitals.OpenApi has its own NativeTools.targets, because vacuum and oasdiff ship as
+		archives.
+	-->
+	<PropertyGroup>
+		<_NativeRid>$(RuntimeIdentifier)</_NativeRid>
+		<_NativeRid Condition="'$(_NativeRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</_NativeRid>
+		<_NativeExe Condition="$(_NativeRid.StartsWith('win'))">.exe</_NativeExe>
+		<_NativeCache>$(BaseIntermediateOutputPath)native/</_NativeCache>
+	</PropertyGroup>
+
+	<Target Name="_DigitalsSelectNativeDownloads">
+		<ItemGroup>
+			<_NativeFile Include="@(_NativeDownload)" Condition="'%(Rid)' == '$(_NativeRid)' or '%(Rid)' == 'any'" />
+		</ItemGroup>
+		<Error Condition="'@(_NativeFile->WithMetadataValue('Executable', 'true')->Count())' == '0'"
+			Text="No native build for RID '$(_NativeRid)'. Supported: @(_NativeDownload->WithMetadataValue('Executable', 'true')->'%(Rid)'->Distinct())." />
+	</Target>
+
+	<!--
+		Runs once per file. A file is cached under its hash, so a version bump never reuses an old one, and under
+		its RID, because pack builds every RID in parallel and two RIDs can share a file (Spectral's one
+		spectral.exe, any licence).
+	-->
+	<Target Name="_DigitalsFetchNativeFile" DependsOnTargets="_DigitalsSelectNativeDownloads" Outputs="%(_NativeFile.Identity)">
+		<PropertyGroup>
+			<_Folder>$(_NativeCache)$(_NativeRid)/%(_NativeFile.Sha256)/</_Folder>
+			<_Download>%(_NativeFile.Identity)</_Download>
+			<_Download Condition="'%(_NativeFile.Extract)' != ''">archive.tar.gz</_Download>
+			<_File>$(_Folder)$(_Download)</_File>
+			<_File Condition="'%(_NativeFile.Extract)' != ''">$(_Folder)%(_NativeFile.Extract)</_File>
+			<_Expected>%(_NativeFile.Sha256)</_Expected>
+		</PropertyGroup>
+
+		<DownloadFile Condition="!Exists('$(_Folder)$(_Download)')" SourceUrl="%(_NativeFile.Url)" DestinationFolder="$(_Folder)" DestinationFileName="$(_Download)" />
+
+		<GetFileHash Files="$(_Folder)$(_Download)" Algorithm="SHA256">
+			<Output TaskParameter="Hash" PropertyName="_Actual" />
+		</GetFileHash>
+		<Delete Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Files="$(_Folder)$(_Download)" />
+		<Error Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Text="%(_NativeFile.Url) has SHA-256 $(_Actual), expected $(_Expected). Deleted it; the next build downloads it again." />
+
+		<Exec Condition="'%(_NativeFile.Extract)' != '' and !Exists('$(_File)')" Command="tar -xzf &quot;$(_Folder)$(_Download)&quot; -C &quot;$(_Folder).&quot; &quot;%(_NativeFile.Extract)&quot;" />
+
+		<!-- The tool sets the execute bit too, since NuGet drops it on extract. This covers the test output. -->
+		<Exec Condition="'%(_NativeFile.Executable)' == 'true' and !$([MSBuild]::IsOSPlatform('Windows'))" Command="chmod +x &quot;$(_File)&quot;" />
+
+		<ItemGroup>
+			<_NativeFetched Include="$(_File)" Link="native/%(_NativeFile.Identity)$(_NativeExe)" Condition="'%(_NativeFile.Executable)' == 'true'" />
+			<_NativeFetched Include="$(_File)" Link="native/%(_NativeFile.Identity)" Condition="'%(_NativeFile.Executable)' != 'true'" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="DigitalsAddNativeFiles" BeforeTargets="AssignTargetPaths" DependsOnTargets="_DigitalsFetchNativeFile">
+		<ItemGroup>
+			<None Include="@(_NativeFetched)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		</ItemGroup>
+	</Target>
+
+</Project>

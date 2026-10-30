@@ -1,0 +1,13 @@
+<Project>
+
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageVersion Include="Digitals.Analyzers" Version="0.11.0" />
+		<PackageVersion Include="Digitals.Testing" Version="0.6.0" />
+		<PackageVersion Include="MinVer" Version="7.0.0" />
+	</ItemGroup>
+
+</Project>
