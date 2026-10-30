@@ -30,13 +30,7 @@ There are two levels, and any rule left on fails `lint`:
 
 The [Protobuf rules page](https://github.com/Digitals-OYT-Ltd/api-conventions/blob/main/docs/rules/protobuf.md) explains every rule: why it exists, a failing and a passing example, and the message it prints.
 
-| Category | Fires on | Level |
-| --- | --- | --- |
-| `BASIC` | A package that doesn't match its directory, a type, field or file not in the style guide's casing, an unused import, a field or enum value name used twice | baseline |
-| `STANDARD` | A package without a version suffix (`acme.notes.v1`), a service not named `...Service`, an RPC whose request and response aren't its own `GetNoteRequest` and `GetNoteResponse`, an enum value without the enum's prefix, an enum whose zero value doesn't end `_UNSPECIFIED`, `google.protobuf.Empty` as a request or response | full |
-| `COMMENTS` | A service, RPC, message, field, oneof, enum or enum value with no comment above it | full |
-
-[examples/protobuf](../../examples/protobuf) is a gRPC contract that passes every rule: unary, server-streaming and client-streaming RPCs, page paging with `total_count`, an update mask, oneofs, a map, nested messages, `optional`, a deprecated RPC and field, and the well-known types. Copy from it, or open [examples/protobuf.html](../../examples/protobuf.html), the page `dt-protobuf docs examples/protobuf examples/protobuf.html` writes from it.
+[examples/protobuf](https://github.com/Digitals-OYT-Ltd/api-conventions/blob/main/examples/protobuf) is a gRPC contract that passes every rule: unary, server-streaming and client-streaming RPCs, page paging with `total_count`, an update mask, oneofs, a map, nested messages, `optional`, a deprecated RPC and field, and the well-known types. Copy from it, or open [examples/protobuf.html](https://github.com/Digitals-OYT-Ltd/api-conventions/blob/main/examples/protobuf.html), the page `dt-protobuf docs examples/protobuf examples/protobuf.html` writes from it.
 
 `breaking` uses buf's `FILE` category at both levels: any change that breaks code generated from the old files, which covers everything that breaks the wire and JSON formats too.
 

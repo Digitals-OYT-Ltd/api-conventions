@@ -11,7 +11,7 @@ The OpenAPI rules, vacuum and oasdiff, and the Swagger UI page.
 - A rule about an HTTP contract is a `dt-` rule. One every HTTP API should meet whatever its design (validity, security, documentation) goes in `digitals-baseline.yaml`; a house rule goes in `digitals.yaml`, which extends the baseline.
 - Prefer a vacuum built-in when one exists, and turn it on with `error`.
 - A check JSONPath and `function: schema` can't express is a JavaScript function in `functions/`: `getSchema()` returns its name, `runRule(input)` returns `[{ message }]`, and the input arrives with `$ref` resolved.
-- Test a rule in `tests/Digitals.OpenApi.Tests/RulesetTests.cs` by editing the `Clean` document, add a `LintBaseline_` case for its level, and add it to the README's table for that level.
+- Test a rule in `tests/Digitals.OpenApi.Tests/RulesetTests.cs` by editing the `Clean` document, add a `LintBaseline_` case for its level, and add its section to `docs/rules/openapi.md` in the shape the others have: badges, why, a red and green diff, the real message. `RulesPageTests` fails until the page and the rulesets agree.
 
 ## Gotchas
 
