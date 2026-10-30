@@ -24,6 +24,7 @@ on:
       - examples/asyncapi.yaml
       - docs/rules/asyncapi.md
       - Directory.Build.props
+      - icon.png
       - Directory.Packages.props
       - global.json
       - nuget.config

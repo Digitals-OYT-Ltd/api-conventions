@@ -23,6 +23,7 @@ on:
       - examples/openapi.yaml
       - docs/rules/openapi.md
       - Directory.Build.props
+      - icon.png
       - Directory.Packages.props
       - global.json
       - nuget.config

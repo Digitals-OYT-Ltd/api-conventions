@@ -23,6 +23,7 @@ on:
       - examples/protobuf/**
       - docs/rules/protobuf.md
       - Directory.Build.props
+      - icon.png
       - Directory.Packages.props
       - global.json
       - nuget.config
