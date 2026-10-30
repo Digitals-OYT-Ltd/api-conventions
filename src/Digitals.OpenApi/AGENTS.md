@@ -23,6 +23,7 @@ The OpenAPI rules, vacuum and oasdiff, and the Swagger UI page.
   - `rule: error` only changes a rule that `extends` already turned on, so the ruleset extends `all` and lists every built-in.
   - A rule's `given` sees a body's `schema: { $ref }` already resolved, so check the target's fields, not `$ref`.
   - A bare YAML alias (`*name`) hides its node's fields from JSONPath rules such as `dt-description`. Inside a schema, reuse a node with `{ <<: *name }`. Anywhere else a merge key is read as a literal `<<` key, so use a bare alias there; `owasp-rate-limit` and the other built-ins see through one.
+  - A rule past `--timeout` (default 5 seconds) silently loses its findings and the run passes. `lint`, `report` and `dashboard` pass `--timeout 300`; keep it on any new command that lints.
   - A JavaScript function gets no options (`context` is unusable), so each behaviour is its own file. A result's `path` changes the printed JSON path but not the line. The functions log to stdout on every run, and only `--silent` hides that.
 - Built-ins replaced by `dt-` rules:
   - `owasp-string-limit` and `owasp-array-limit` only check request schemas; `dt-string-limit` and `dt-array-limit` replace them.

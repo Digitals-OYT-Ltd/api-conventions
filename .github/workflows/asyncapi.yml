@@ -22,6 +22,7 @@ on:
       - src/NativeBinaries.targets
       - src/WebAssets.targets
       - examples/asyncapi.yaml
+      - docs/rules/asyncapi.md
       - Directory.Build.props
       - Directory.Packages.props
       - global.json
@@ -57,7 +58,7 @@ jobs:
       # The tool packs once per platform with that platform's binaries, so keep the downloads between
       # runs. A version or hash change changes the key.
       - name: 💾 Cache Bundled Binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             src/Digitals.AsyncApi/obj/native/

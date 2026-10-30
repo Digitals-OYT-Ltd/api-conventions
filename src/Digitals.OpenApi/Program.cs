@@ -86,10 +86,15 @@ internal static class Program
         var (specs, options) = Split(args, 1);
         // Without --all-results, --details lists only the first 1,000 findings and says nothing about the rest.
         return Vacuum([
-            "lint", "--details", "--all-results", "--no-banner", "--no-clip",
+            "lint", "--details", "--all-results", "--no-banner", "--no-clip", .. RuleTimeout,
             .. WithAbsolutePaths(specs), .. WithRuleset(options), .. specs,
         ]);
     }
+
+    // A rule that runs past vacuum's timeout, 5 seconds by default, loses its findings and the run still passes.
+    // A JavaScript rule on a large contract on a slow CI runner gets there, so allow far longer. A --timeout
+    // the caller passes comes later and wins.
+    private static readonly string[] RuleTimeout = ["--timeout", "300"];
 
     // vacuum prints a spec's path relative to the working directory, which for a spec elsewhere is a
     // run of ../ segments. Those print absolute instead.
@@ -103,13 +108,13 @@ internal static class Program
     {
         var (files, options) = Split(args, 1, 2);
         var report = files is [_, var output] ? output : "openapi-report.html";
-        return Vacuum(["html-report", .. WithRuleset(options), files[0], report]);
+        return Vacuum(["html-report", .. RuleTimeout, .. WithRuleset(options), files[0], report]);
     }
 
     private static int Dashboard(string[] args)
     {
         var (spec, options) = Split(args, 1, 1);
-        return Vacuum(["dashboard", .. WithRuleset(options), spec[0]]);
+        return Vacuum(["dashboard", .. RuleTimeout, .. WithRuleset(options), spec[0]]);
     }
 
     private static int Swagger(string[] args)
