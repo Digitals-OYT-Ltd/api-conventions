@@ -1,0 +1,65 @@
+AttachmentService.AddAttachment  client streaming /digitals.bookings.v1.AttachmentService/AddAttachment
+  AttachmentService.AddAttachment.OK                          Send a stream of valid AddAttachmentRequest messages and close it. Expect OK with an AddAttachmentResponse.
+  AttachmentService.AddAttachment.part.required               Rejects a request that sets none of metadata or chunk with INVALID_ARGUMENT.
+  AttachmentService.AddAttachment.metadata.booking_id.uuid    Rejects "not-a-uuid" with INVALID_ARGUMENT.
+  AttachmentService.AddAttachment.metadata.file_name.min_len  Accepts 1 character, rejects an empty value with INVALID_ARGUMENT.
+  AttachmentService.AddAttachment.metadata.file_name.max_len  Accepts 255 characters, rejects 256 with INVALID_ARGUMENT.
+  AttachmentService.AddAttachment.metadata.content_type.in    Accepts "application/pdf" and "image/png", rejects "not-application/pdf" with INVALID_ARGUMENT.
+  AttachmentService.AddAttachment.metadata.size_bytes.lte     Accepts 20971520, rejects 20971521 with INVALID_ARGUMENT.
+  AttachmentService.AddAttachment.metadata.size_bytes.gt      Accepts 1, rejects 0 with INVALID_ARGUMENT.
+  AttachmentService.AddAttachment.chunk.max_len               Accepts 1048576 bytes, rejects 1048577 with INVALID_ARGUMENT.
+
+AttachmentService.GetAttachment  server streaming /digitals.bookings.v1.AttachmentService/GetAttachment
+  AttachmentService.GetAttachment.OK                  Send a valid GetAttachmentRequest. Expect a stream of GetAttachmentResponse messages, then OK.
+  AttachmentService.GetAttachment.booking_id.uuid     Rejects "not-a-uuid" with INVALID_ARGUMENT.
+  AttachmentService.GetAttachment.attachment_id.uuid  Rejects "not-a-uuid" with INVALID_ARGUMENT.
+
+BookingService.ListBookings  unary /digitals.bookings.v1.BookingService/ListBookings
+  BookingService.ListBookings.OK                       Send a valid ListBookingsRequest. Expect OK with a ListBookingsResponse.
+  BookingService.ListBookings.venue_id.pattern         Accepts a value matching ^[A-Z]{3}[0-9]{3}$, rejects "!" with INVALID_ARGUMENT.
+  BookingService.ListBookings.statuses.unique          Rejects two equal items with INVALID_ARGUMENT.
+  BookingService.ListBookings.statuses[].defined_only  Rejects the undefined number 5 with INVALID_ARGUMENT.
+  BookingService.ListBookings.page.gte                 Accepts 0, rejects -1 with INVALID_ARGUMENT.
+  BookingService.ListBookings.page_size.lte            Accepts 100, rejects 101 with INVALID_ARGUMENT.
+  BookingService.ListBookings.page_size.gte            Accepts 0, rejects -1 with INVALID_ARGUMENT.
+
+BookingService.GetBooking  unary /digitals.bookings.v1.BookingService/GetBooking
+  BookingService.GetBooking.OK               Send a valid GetBookingRequest. Expect OK with a GetBookingResponse.
+  BookingService.GetBooking.booking_id.uuid  Rejects "not-a-uuid" with INVALID_ARGUMENT.
+
+BookingService.CreateBooking  unary /digitals.bookings.v1.BookingService/CreateBooking
+  BookingService.CreateBooking.OK                    Send a valid CreateBookingRequest. Expect OK with a CreateBookingResponse.
+  BookingService.CreateBooking.retry                 Send the same request twice with the same request_id. Expect the first result both times and the change made once.
+  BookingService.CreateBooking.request_id.uuid       Rejects "not-a-uuid" with INVALID_ARGUMENT.
+  BookingService.CreateBooking.venue_id.pattern      Accepts a value matching ^[A-Z]{3}[0-9]{3}$, rejects "!" with INVALID_ARGUMENT.
+  BookingService.CreateBooking.customer_id.required  Rejects a request without customer_id with INVALID_ARGUMENT.
+  BookingService.CreateBooking.start_time.required   Rejects a request without start_time with INVALID_ARGUMENT.
+  BookingService.CreateBooking.start_time.gt_now     Rejects a time in the past with INVALID_ARGUMENT.
+  BookingService.CreateBooking.duration.required     Rejects a request without duration with INVALID_ARGUMENT.
+  BookingService.CreateBooking.duration.lte          Accepts 28800s, rejects 28801s with INVALID_ARGUMENT.
+  BookingService.CreateBooking.duration.gte          Accepts 900s, rejects 899s with INVALID_ARGUMENT.
+  BookingService.CreateBooking.request.max_len       Accepts 500 characters, rejects 501 with INVALID_ARGUMENT.
+
+BookingService.UpdateBooking  unary /digitals.bookings.v1.BookingService/UpdateBooking
+  BookingService.UpdateBooking.OK                        Send a valid UpdateBookingRequest. Expect OK with an UpdateBookingResponse.
+  BookingService.UpdateBooking.update_mask.unknown_path  Send an update_mask naming a field that doesn't exist. Expect INVALID_ARGUMENT.
+  BookingService.UpdateBooking.booking.required          Rejects a request without booking with INVALID_ARGUMENT.
+  BookingService.UpdateBooking.update_mask.required      Rejects a request without update_mask with INVALID_ARGUMENT.
+  BookingService.UpdateBooking.etag.required             Rejects a request without etag with INVALID_ARGUMENT.
+
+BookingService.CancelBooking  unary /digitals.bookings.v1.BookingService/CancelBooking
+  BookingService.CancelBooking.OK                       Send a valid CancelBookingRequest. Expect OK with a CancelBookingResponse.
+  BookingService.CancelBooking.cancelled_by.required    Rejects a request that sets none of customer or venue with INVALID_ARGUMENT.
+  BookingService.CancelBooking.booking_id.uuid          Rejects "not-a-uuid" with INVALID_ARGUMENT.
+  BookingService.CancelBooking.customer.reason.max_len  Accepts 500 characters, rejects 501 with INVALID_ARGUMENT.
+  BookingService.CancelBooking.venue.reason.min_len     Accepts 1 character, rejects an empty value with INVALID_ARGUMENT.
+  BookingService.CancelBooking.venue.reason.max_len     Accepts 500 characters, rejects 501 with INVALID_ARGUMENT.
+
+BookingService.WatchBookings  server streaming /digitals.bookings.v1.BookingService/WatchBookings
+  BookingService.WatchBookings.OK                Send a valid WatchBookingsRequest. Expect a stream of WatchBookingsResponse messages, then OK.
+  BookingService.WatchBookings.venue_id.pattern  Accepts a value matching ^[A-Z]{3}[0-9]{3}$, rejects "!" with INVALID_ARGUMENT.
+
+BookingService.ListVenueBookings  unary /digitals.bookings.v1.BookingService/ListVenueBookings (deprecated)
+  BookingService.ListVenueBookings.OK                Send a valid ListVenueBookingsRequest. Expect OK with a ListVenueBookingsResponse.
+  BookingService.ListVenueBookings.venue_id.pattern  Accepts a value matching ^[A-Z]{3}[0-9]{3}$, rejects "!" with INVALID_ARGUMENT.
+

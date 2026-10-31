@@ -7,8 +7,8 @@
 		To upgrade, change a version and every hash for it, then run `just test`.
 	-->
 	<PropertyGroup>
-		<VacuumVersion>0.33.0</VacuumVersion>
-		<OasdiffVersion>1.33.0</OasdiffVersion>
+		<VacuumVersion>0.35.2</VacuumVersion>
+		<OasdiffVersion>1.35.0</OasdiffVersion>
 		<_NativeRid>$(RuntimeIdentifier)</_NativeRid>
 		<_NativeRid Condition="'$(_NativeRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</_NativeRid>
 		<_NativeExe Condition="$(_NativeRid.StartsWith('win'))">.exe</_NativeExe>
@@ -16,19 +16,19 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="osx-arm64" Asset="darwin_arm64" Archive="vacuum_$(VacuumVersion)_darwin_arm64.tar.gz" Sha256="de5410bfc557fd9f81a2a3bb6588674d350ba274ed2ddcc3b4ecd3e77968d63b" />
-		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="osx-x64" Asset="darwin_x86_64" Archive="vacuum_$(VacuumVersion)_darwin_x86_64.tar.gz" Sha256="0719f511c497eaa3b7659d13e3b0ce10c2cbdae8fcc735e676cef98b6fb37f91" />
-		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="linux-arm64" Asset="linux_arm64" Archive="vacuum_$(VacuumVersion)_linux_arm64.tar.gz" Sha256="87a340ced4fe0a5d4068ef43d75269a3a11ea38fc6d1e9e9c29df9aa6c6be9b4" />
-		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="linux-x64" Asset="linux_x86_64" Archive="vacuum_$(VacuumVersion)_linux_x86_64.tar.gz" Sha256="b4de4f93784194dce3af3a554abca8abdefb9529e6d4ed1ad5eb26cfbb0298d7" />
-		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="win-arm64" Asset="windows_arm64" Archive="vacuum_$(VacuumVersion)_windows_arm64.tar.gz" Sha256="c4d0b36e45bb0b52e565c5de5bc692046c2d3d730a814f56fc9312ecd37c982b" />
-		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="win-x64" Asset="windows_x86_64" Archive="vacuum_$(VacuumVersion)_windows_x86_64.tar.gz" Sha256="9bf87b10a1074e451d5e040b4e6825ff19a411b8938dfb951c1b074fcb32a685" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="osx-arm64" Asset="darwin_arm64" Archive="vacuum_$(VacuumVersion)_darwin_arm64.tar.gz" Sha256="078821285bb3b78559fcb1de93a6ecb23defac913a45cc4dd1bc037a4b7034a9" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="osx-x64" Asset="darwin_x86_64" Archive="vacuum_$(VacuumVersion)_darwin_x86_64.tar.gz" Sha256="f4bb2ec51ed599c92192c08cf09b151c5918d5b507253b72582ab65bbc47370b" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="linux-arm64" Asset="linux_arm64" Archive="vacuum_$(VacuumVersion)_linux_arm64.tar.gz" Sha256="a02c237b5915b33f7dfd12b7ae920b154b855da22c21876182477a56c845fede" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="linux-x64" Asset="linux_x86_64" Archive="vacuum_$(VacuumVersion)_linux_x86_64.tar.gz" Sha256="1acc9f25cfa05dea7c76fb0b20dacd28e4f4c1bf6fe8cc2ee6b8091465dd1e95" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="win-arm64" Asset="windows_arm64" Archive="vacuum_$(VacuumVersion)_windows_arm64.tar.gz" Sha256="0cdba3ff3e207419623adc314bc046f51604cedf7f1475601f8971f69e25225f" />
+		<_NativeAsset Include="vacuum" Version="$(VacuumVersion)" Repository="daveshanley/vacuum" Rid="win-x64" Asset="windows_x86_64" Archive="vacuum_$(VacuumVersion)_windows_x86_64.tar.gz" Sha256="db2303b151252d04ad1160d5b617d2dfd6aa9aa108fa5cac68b5a2b1aa65c948" />
 
-		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="osx-arm64" Asset="darwin_all" Archive="oasdiff_$(OasdiffVersion)_darwin_all.tar.gz" Sha256="2a479337c15afdcbf0b1e89c0b4d0cf0176472dbc11483358fed1f831d1e46c5" />
-		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="osx-x64" Asset="darwin_all" Archive="oasdiff_$(OasdiffVersion)_darwin_all.tar.gz" Sha256="2a479337c15afdcbf0b1e89c0b4d0cf0176472dbc11483358fed1f831d1e46c5" />
-		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="linux-arm64" Asset="linux_arm64" Archive="oasdiff_$(OasdiffVersion)_linux_arm64.tar.gz" Sha256="4ae3c362d6074d919aada2dea82d0ee84366591600384455d0bdc658ddf8f7ae" />
-		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="linux-x64" Asset="linux_amd64" Archive="oasdiff_$(OasdiffVersion)_linux_amd64.tar.gz" Sha256="43a4e328e2d13ba1552d760aa68d2485c75c5621f309f6ff64ae895188345247" />
-		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="win-arm64" Asset="windows_arm64" Archive="oasdiff_$(OasdiffVersion)_windows_arm64.tar.gz" Sha256="d51bd1ea4b05ff9b314245d1e97f84c222b22ce34a930e8e305c68c32edbe951" />
-		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="win-x64" Asset="windows_amd64" Archive="oasdiff_$(OasdiffVersion)_windows_amd64.tar.gz" Sha256="22f98c7247075f8a446e783595802d6d38637de1760df264f3d4b3309f766c5b" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="osx-arm64" Asset="darwin_all" Archive="oasdiff_$(OasdiffVersion)_darwin_all.tar.gz" Sha256="964ad2c0331768c4515fc49779827094bc89a65b1d309dac28886d1c3faf305c" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="osx-x64" Asset="darwin_all" Archive="oasdiff_$(OasdiffVersion)_darwin_all.tar.gz" Sha256="964ad2c0331768c4515fc49779827094bc89a65b1d309dac28886d1c3faf305c" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="linux-arm64" Asset="linux_arm64" Archive="oasdiff_$(OasdiffVersion)_linux_arm64.tar.gz" Sha256="1f8b5aa033cd0240ae6c53460268bcd6e578526666a4487a781ece8cef39fbdd" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="linux-x64" Asset="linux_amd64" Archive="oasdiff_$(OasdiffVersion)_linux_amd64.tar.gz" Sha256="a8023002fcb2eaa7f5758148a9303cb63d33b939886df312268bc0fc7b939140" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="win-arm64" Asset="windows_arm64" Archive="oasdiff_$(OasdiffVersion)_windows_arm64.tar.gz" Sha256="da981a1d29092d43e692e65f90c5ce90232849e2aa9a7c1e417bd85108e58d98" />
+		<_NativeAsset Include="oasdiff" Version="$(OasdiffVersion)" Repository="oasdiff/oasdiff" Rid="win-x64" Asset="windows_amd64" Archive="oasdiff_$(OasdiffVersion)_windows_amd64.tar.gz" Sha256="5cdea2b64bd083d16dff19dba3aae011a0b7388ab33df81051cfc76800bf73e0" />
 	</ItemGroup>
 
 	<Target Name="_DigitalsSelectNativeTools">
@@ -57,7 +57,7 @@
 
 		<MakeDir Directories="$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/" />
 		<Exec Condition="!Exists('$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/%(_NativeTool.Identity)$(_NativeExe)')"
-			Command="tar -xzf &quot;$(_Archive)&quot; -C &quot;$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/.&quot;" />
+			Command="tar -xzmf &quot;$(_Archive)&quot; -C &quot;$(_NativeCache)%(_NativeTool.Identity)-%(_NativeTool.Version)-%(_NativeTool.Rid)/.&quot;" />
 	</Target>
 
 	<Target Name="DigitalsAddNativeTools" BeforeTargets="AssignTargetPaths" DependsOnTargets="_DigitalsFetchNativeTool">

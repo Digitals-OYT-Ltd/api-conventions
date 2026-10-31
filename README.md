@@ -38,7 +38,7 @@ A contract is the first thing we write for an API and the thing every consumer r
 - **One install per format.** vacuum, oasdiff, Spectral, buf and protoc-gen-doc ship inside the package for your platform. No Node, Go or Docker on the build agent.
 - **The same result everywhere.** Every bundled binary is pinned and checked against its SHA-256 when the package is built, so a laptop and CI run the same linter with the same rules.
 - **Works on any contract.** Point it at a path or a URL. `--baseline` audits an API that was never built to our conventions.
-- **Documentation without a server.** `swagger` and `docs` inline the viewer and the contract into one HTML file that opens with no network.
+- **Documentation without a server.** `docs` inlines the viewer and the contract into one HTML file that opens with no network.
 
 ## Quick start
 
@@ -49,7 +49,7 @@ dotnet new tool-manifest                      # once per repo
 dotnet tool install Digitals.OpenApi          # or Digitals.AsyncApi, Digitals.Protobuf
 
 dotnet dt-openapi lint contract/openapi.yaml  # exit 1 on any finding
-dotnet dt-openapi swagger contract/openapi.yaml
+dotnet dt-openapi docs contract/openapi.yaml
 ```
 
 Catch a breaking change before it ships:
@@ -76,17 +76,18 @@ Removing an operation needs it deprecated first, with an `x-sunset` date at leas
 | Breaking changes | `breaking` | | `breaking` |
 | Design against implementation | `diff` | | |
 | Changelog | `changelog` | | |
+| Test cases | [`cases`](src/Digitals.OpenApi/README.md#test-cases) | [`cases`](src/Digitals.AsyncApi/README.md#test-cases) (AsyncAPI 3) | [`cases`](src/Digitals.Protobuf/README.md#test-cases) |
 | Report | `report` (HTML), `dashboard` (terminal) | | |
-| Docs page | `swagger` (Swagger UI) | `docs` (AsyncAPI viewer) | `docs` (our own viewer) |
+| Docs page | `docs` (Swagger UI) | `docs` (AsyncAPI viewer) | `docs` (our own viewer) |
 | Print or extend the rules | `ruleset` | `ruleset` | `ruleset` |
-| Bundled | vacuum, oasdiff, Swagger UI | Spectral, AsyncAPI React | buf, protoc-gen-doc |
+| Bundled | vacuum, oasdiff, Swagger UI | Spectral, AsyncAPI React | buf, protoc-gen-doc, protovalidate |
 | Raw access | `vacuum`, `oasdiff` | `spectral` | `buf` |
 
 Every rule has its own section on the rules page for [OpenAPI](docs/rules/openapi.md), [AsyncAPI](docs/rules/asyncapi.md) or [Protobuf](docs/rules/protobuf.md): why it exists, a failing and a passing example, and the message the linter prints.
 
 ## Docs pages that open from a file
 
-`dt-openapi swagger`, `dt-asyncapi docs` and `dt-protobuf docs` write a single HTML file with the viewer, its styles and the contract inlined. It opens offline, from an email attachment or a CI artifact.
+`dt-openapi docs`, `dt-asyncapi docs` and `dt-protobuf docs` write a single HTML file with the viewer, its styles and the contract inlined. It opens offline, from an email attachment or a CI artifact.
 
 <table>
   <tr>
@@ -95,7 +96,7 @@ Every rule has its own section on the rules page for [OpenAPI](docs/rules/openap
     <td width="33%"><img alt="Protobuf page for the example bookings service, with the contents on the left and a method's request fields" src="docs/images/protobuf.png"></td>
   </tr>
   <tr>
-    <td><code>dt-openapi swagger</code><br><a href="examples/openapi.yaml">examples/openapi.yaml</a></td>
+    <td><code>dt-openapi docs</code><br><a href="examples/openapi.yaml">examples/openapi.yaml</a></td>
     <td><code>dt-asyncapi docs</code><br><a href="examples/asyncapi.yaml">examples/asyncapi.yaml</a></td>
     <td><code>dt-protobuf docs</code><br><a href="examples/protobuf/">examples/protobuf/</a></td>
   </tr>
@@ -132,6 +133,8 @@ The tools exit with the bundled linter's code, so a finding fails the step. Opti
 ```
 
 A usage error exits 2. buf exits 100 on a finding.
+
+A tool on a version nuget.org lists as vulnerable or deprecated warns on stderr. Set `DT_FAIL_ON_WITHDRAWN: "1"` in the job's `env` to fail the step instead; [SECURITY.md](SECURITY.md) covers how a version gets withdrawn.
 
 ## Two rule levels
 
@@ -185,7 +188,7 @@ Each tool releases on its own tag. Its workflow in `.github/workflows/` tests it
 git tag openapi/v1.2.0 && git push origin openapi/v1.2.0    # or asyncapi/v*, protobuf/v*
 ```
 
-MinVer versions each tool from its own tags only. After a dt-openapi release, bump `DigitalsOpenApiVersion` in csharp-api-template's `src/Digitals.Api.Templates/Digitals.Api.Templates.csproj` so new services pin it.
+MinVer versions each tool from its own tags only.
 
 ## Licence
 

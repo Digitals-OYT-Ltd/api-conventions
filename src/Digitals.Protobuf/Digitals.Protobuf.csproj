@@ -12,8 +12,8 @@
 		<PackageId>Digitals.Protobuf</PackageId>
 		<!-- Released by tagging protobuf/v1.2.0, which packs 1.2.0. -->
 		<MinVerTagPrefix>protobuf/v</MinVerTagPrefix>
-		<Description>Lints .proto files for gRPC APIs against the Digitals rules, checks their formatting, fails on breaking changes, and writes them as an offline documentation page. Bundles buf and protoc-gen-doc, so it needs nothing else installed.</Description>
-		<PackageTags>protobuf;proto;grpc;lint;buf;breaking-changes;api;contract;dotnet-tool</PackageTags>
+		<Description>Lints .proto files for gRPC APIs against the Digitals rules, checks their formatting, fails on breaking changes, writes them as an offline documentation page, and lists the test cases they imply. Bundles buf, protoc-gen-doc and protovalidate, so it needs nothing else installed.</Description>
+		<PackageTags>protobuf;proto;grpc;lint;buf;protovalidate;breaking-changes;test-cases;api;contract;dotnet-tool</PackageTags>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
@@ -25,23 +25,26 @@
 		<None Include="buf.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<None Include="buf-baseline.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Compile Include="..\ViewerPage.cs" Link="ViewerPage.cs" />
+		<Compile Include="..\CaseList.cs" Link="CaseList.cs" />
+		<Compile Include="..\Sentences.cs" Link="Sentences.cs" />
+		<Compile Include="..\VersionCheck.cs" Link="VersionCheck.cs" />
 		<None Include="viewer/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<None Include="README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 	<!-- To upgrade buf, change the version and every hash (from the release's sha256.txt), then run `just test`. -->
 	<PropertyGroup>
-		<BufVersion>1.74.0</BufVersion>
+		<BufVersion>1.75.0</BufVersion>
 		<_BufRelease>https://github.com/bufbuild/buf/releases/download/v$(BufVersion)</_BufRelease>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<_NativeDownload Include="buf" Executable="true" Rid="osx-arm64" Url="$(_BufRelease)/buf-Darwin-arm64" Sha256="602d73e39a8835efd29a02ba6db6060ae86e4a0df19b8ac4403032b5deae3569" />
-		<_NativeDownload Include="buf" Executable="true" Rid="osx-x64" Url="$(_BufRelease)/buf-Darwin-x86_64" Sha256="a385ecb788f4255c855d0e77643a60ed0de23f9eb978bd54d695c820aa29e172" />
-		<_NativeDownload Include="buf" Executable="true" Rid="linux-arm64" Url="$(_BufRelease)/buf-Linux-aarch64" Sha256="d42b471501a85dbadb40062960492dd81ce5ca4e413f4133d514d3ae3c0af4df" />
-		<_NativeDownload Include="buf" Executable="true" Rid="linux-x64" Url="$(_BufRelease)/buf-Linux-x86_64" Sha256="92326d957d613712669fb55f9e4340946a8142a92120e09008459118778273d2" />
-		<_NativeDownload Include="buf" Executable="true" Rid="win-arm64" Url="$(_BufRelease)/buf-Windows-arm64.exe" Sha256="681d1d56d42d7e5d74cbcd940cc0e8d656aed66d926a1e0c9f6ef9bd514d8fff" />
-		<_NativeDownload Include="buf" Executable="true" Rid="win-x64" Url="$(_BufRelease)/buf-Windows-x86_64.exe" Sha256="0677ba830deceadd619455b058631cc00ffbe305858e03d6a90b17b12cb16d38" />
+		<_NativeDownload Include="buf" Executable="true" Rid="osx-arm64" Url="$(_BufRelease)/buf-Darwin-arm64" Sha256="f71b009ebd8530b12fd85b060c6c245e15d6e5110ccc8da48d8b6fa71e59330b" />
+		<_NativeDownload Include="buf" Executable="true" Rid="osx-x64" Url="$(_BufRelease)/buf-Darwin-x86_64" Sha256="ff6d0979143c661d59178a032c57be883b2ac03dc9bf7d00ffca222b0354bd46" />
+		<_NativeDownload Include="buf" Executable="true" Rid="linux-arm64" Url="$(_BufRelease)/buf-Linux-aarch64" Sha256="00eb190aa82df17f393e05b04889cc60a0b13b3259d336e21a87d5f23ab4fd26" />
+		<_NativeDownload Include="buf" Executable="true" Rid="linux-x64" Url="$(_BufRelease)/buf-Linux-x86_64" Sha256="fad1e38d6909bbb583a4da81d8c02a01046e2cd663bde7e337dd24277393764b" />
+		<_NativeDownload Include="buf" Executable="true" Rid="win-arm64" Url="$(_BufRelease)/buf-Windows-arm64.exe" Sha256="57fdfac407c0538707a7d8f7ddc13fcd8770e3c58dcffe7d55e7d8f1804cca61" />
+		<_NativeDownload Include="buf" Executable="true" Rid="win-x64" Url="$(_BufRelease)/buf-Windows-x86_64.exe" Sha256="de35b288e7962ac72aefee5048aff80551a4f0e6ac865a21f838693461ac8b8d" />
 		<_NativeDownload Include="buf.LICENSE" Rid="any" Url="https://raw.githubusercontent.com/bufbuild/buf/v$(BufVersion)/LICENSE" Sha256="995b27237c0d8ef8c970d36da9e81f1472790ae18f3d7d5a966781b53d78f242" />
 	</ItemGroup>
 
@@ -59,6 +62,20 @@
 		<_NativeDownload Include="protoc-gen-doc" Executable="true" Rid="win-arm64" Url="$(_ProtocGenDocRelease)_windows_arm64.tar.gz" Extract="protoc-gen-doc.exe" Sha256="bf8bc651c17e64bfec663192e660655c2bcc415f6dff9e88201d8b07fb23d493" />
 		<_NativeDownload Include="protoc-gen-doc" Executable="true" Rid="win-x64" Url="$(_ProtocGenDocRelease)_windows_amd64.tar.gz" Extract="protoc-gen-doc.exe" Sha256="8acf0bf64eda29183b4c6745c3c6a12562fd9a8ab08d61788cf56e6659c66b3b" />
 		<_NativeDownload Include="protoc-gen-doc.LICENSE" Rid="any" Url="https://raw.githubusercontent.com/pseudomuto/protoc-gen-doc/v$(ProtocGenDocVersion)/LICENSE.md" Sha256="73fa38ee85810bdfd97393bf9b2c1a3acf68795e62905cc65d82d02745ae822d" />
+	</ItemGroup>
+
+	<!--
+		protovalidate's rules, so `cases` compiles a contract that imports buf/validate/validate.proto without
+		fetching it. To upgrade, change the version and both hashes (sha256 of each raw file).
+	-->
+	<PropertyGroup>
+		<ProtovalidateVersion>1.2.2</ProtovalidateVersion>
+		<_ProtovalidateRaw>https://raw.githubusercontent.com/bufbuild/protovalidate/v$(ProtovalidateVersion)</_ProtovalidateRaw>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<_NativeDownload Include="validate.proto" Rid="any" Url="$(_ProtovalidateRaw)/proto/protovalidate/buf/validate/validate.proto" Sha256="a1dc1163ebac930b3b070655b91f2bc78df8b4aea940021661fe5ec7904a7b88" />
+		<_NativeDownload Include="protovalidate.LICENSE" Rid="any" Url="$(_ProtovalidateRaw)/LICENSE" Sha256="ab870089234b247d1f41828bf8f39a7dbb7171277f81a56e69b474dc2fe51098" />
 	</ItemGroup>
 
 	<Import Project="..\NativeBinaries.targets" />

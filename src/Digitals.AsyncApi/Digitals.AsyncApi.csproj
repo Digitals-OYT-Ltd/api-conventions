@@ -19,6 +19,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="MinVer" PrivateAssets="all" />
+		<!-- Reads a contract for `cases`. It brings Microsoft.OpenApi, whose schema model reads a payload, and SharpYaml. -->
+		<PackageReference Include="Microsoft.OpenApi.YamlReader" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -26,18 +28,23 @@
 		<None Include="digitals-baseline.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<None Include="functions/*.js" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Compile Include="..\ViewerPage.cs" Link="ViewerPage.cs" />
+		<Compile Include="..\ContractYaml.cs" Link="ContractYaml.cs" />
+		<Compile Include="..\SchemaRules.cs" Link="SchemaRules.cs" />
+		<Compile Include="..\CaseList.cs" Link="CaseList.cs" />
+		<Compile Include="..\Sentences.cs" Link="Sentences.cs" />
+		<Compile Include="..\VersionCheck.cs" Link="VersionCheck.cs" />
 		<None Include="viewer/*.html" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<None Include="README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 	<!-- The AsyncAPI viewer for `dt-asyncapi docs`. To upgrade, change the version and every hash, then run `just test`. -->
 	<PropertyGroup>
-		<AsyncApiReactVersion>3.2.1</AsyncApiReactVersion>
+		<AsyncApiReactVersion>3.2.2</AsyncApiReactVersion>
 		<_AsyncApiReact>https://cdn.jsdelivr.net/npm/@asyncapi/react-component@$(AsyncApiReactVersion)</_AsyncApiReact>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<_WebAsset Include="asyncapi-react.js" Url="$(_AsyncApiReact)/browser/standalone/index.js" Sha256="719f29a62127c5c406af8b3b016167d69e43624200354966cc4997bdce5e4c54" />
+		<_WebAsset Include="asyncapi-react.js" Url="$(_AsyncApiReact)/browser/standalone/index.js" Sha256="2b1d27260763f5a2105ee7ae89e871a327437a8d9c1b507fd786b7753e5350e8" />
 		<_WebAsset Include="asyncapi-react.css" Url="$(_AsyncApiReact)/styles/default.min.css" Sha256="c8093f9b6441559267845abc24611f7721d075e4f278a8143857bcdc348df410" />
 		<_WebAsset Include="asyncapi-react.LICENSE" Url="$(_AsyncApiReact)/LICENSE" Sha256="43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1" />
 	</ItemGroup>

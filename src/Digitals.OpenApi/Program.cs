@@ -16,10 +16,11 @@ internal static class Program
           dt-openapi lint <spec> [options]                  Fail when the document breaks a rule
           dt-openapi report <spec> [<out.html>]             Write an HTML report (default openapi-report.html)
           dt-openapi dashboard <spec>                       Browse the findings in the terminal
-          dt-openapi swagger <spec> [<out.html>]            Write the contract as a Swagger UI page
+          dt-openapi docs <spec> [<out.html>]               Write the contract as a Swagger UI page
           dt-openapi diff <design> <implementation>         Fail when the implementation differs from the design
           dt-openapi breaking <base> <revision> [options]   Fail on a breaking change between two versions
           dt-openapi changelog <base> <revision> [options]  List the changes between two versions
+          dt-openapi cases <spec> [options]                 List the test cases the contract implies
           dt-openapi ruleset [<out.yaml>] [--baseline]      Print or write the ruleset and its functions folder
           dt-openapi vacuum <args>                          Run the bundled vacuum
           dt-openapi oasdiff <args>                         Run the bundled oasdiff
@@ -28,8 +29,11 @@ internal static class Program
         lint, report, dashboard and ruleset take --baseline for the baseline ruleset: the industry
         basics, without the Digitals house rules. Use it to audit an existing API. lint, report and
         dashboard take --ruleset <file> to use another ruleset instead.
-        swagger writes one self-contained page, by default beside the spec with .html, that opens offline.
+        docs writes one self-contained page, by default beside the spec with .html, that opens offline.
         breaking wants a deprecated operation's x-sunset at least 180 days out.
+        cases lists one case per documented response and one per rule on each parameter and request
+        body field, each with an ID a test can be named by. --only responses or --only rules lists one
+        kind; --format json prints them for an agent.
         Options after the arguments go to vacuum or oasdiff unchanged.
         """;
 
@@ -51,6 +55,11 @@ internal static class Program
             return args.Length == 0 ? 1 : 0;
         }
 
+        if (VersionCheck.Stop("Digitals.OpenApi", "dt-openapi"))
+        {
+            return 1;
+        }
+
         try
         {
             return Run(args[0], args[1..]);
@@ -68,10 +77,11 @@ internal static class Program
         ["lint"] = Lint,
         ["report"] = Report,
         ["dashboard"] = Dashboard,
-        ["swagger"] = Swagger,
+        ["docs"] = Docs,
         ["diff"] = Diff,
         ["breaking"] = Breaking,
         ["changelog"] = Changelog,
+        ["cases"] = Cases,
         ["ruleset"] = WriteRuleset,
         ["vacuum"] = Vacuum,
         ["oasdiff"] = Oasdiff,
@@ -117,7 +127,7 @@ internal static class Program
         return Vacuum(["dashboard", .. RuleTimeout, .. WithRuleset(options), spec[0]]);
     }
 
-    private static int Swagger(string[] args)
+    private static int Docs(string[] args)
     {
         var (files, options) = Split(args, 1, 2);
         if (options.Length > 0)
@@ -162,6 +172,56 @@ internal static class Program
     {
         var (specs, options) = Split(args, 2, 2);
         return Oasdiff(["changelog", .. specs, .. options]);
+    }
+
+    private static int Cases(string[] args)
+    {
+        var (spec, options) = Split(args, 1, 1);
+        var settings = Settings(options, new(StringComparer.Ordinal)
+        {
+            ["--format"] = ["text", "json"],
+            ["--only"] = ["responses", "rules"],
+        });
+        if (!File.Exists(spec[0]))
+        {
+            throw new UsageException($"no file at {spec[0]}");
+        }
+
+        var (document, errors) = Contract.Read(spec[0]);
+        string[] problems = [.. errors, .. document is null ? [] : TestCases.Unnamed(document)];
+        foreach (var problem in problems)
+        {
+            Console.Error.WriteLine($"dt-openapi cases: {spec[0]}: {problem}");
+        }
+
+        if (document is null)
+        {
+            return 1;
+        }
+
+        var only = settings.GetValueOrDefault("--only");
+        var cases = TestCases.From(document, responses: only != "rules", rules: only != "responses");
+        CaseList.Write(cases, settings.GetValueOrDefault("--format") == "json", c => $"{c.Method} {c.Path}");
+        return 0;
+    }
+
+    private static Dictionary<string, string> Settings(string[] options, Dictionary<string, string[]> allowed)
+    {
+        var settings = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < options.Length; i += 2)
+        {
+            if (!allowed.TryGetValue(options[i], out var values))
+            {
+                throw new UsageException($"unknown option '{options[i]}'");
+            }
+
+            var value = options.ElementAtOrDefault(i + 1);
+            settings[options[i]] = value is not null && values.Contains(value)
+                ? value
+                : throw new UsageException($"{options[i]} takes {string.Join(" or ", values)}");
+        }
+
+        return settings;
     }
 
     /// <summary>

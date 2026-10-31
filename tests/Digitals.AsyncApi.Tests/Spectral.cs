@@ -63,6 +63,8 @@ internal static class Spectral
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        // The version check has its own tests; the rest stay off the network.
+        start.Environment["DT_VERSION_CHECK"] = "off";
         foreach (var arg in (string[])[Path.Combine(Output, "Digitals.AsyncApi.dll"), .. args])
         {
             start.ArgumentList.Add(arg);

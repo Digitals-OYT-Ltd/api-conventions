@@ -47,7 +47,7 @@
 		<Delete Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Files="$(_Folder)$(_Download)" />
 		<Error Condition="'$(_Actual.ToLowerInvariant())' != '$(_Expected)'" Text="%(_NativeFile.Url) has SHA-256 $(_Actual), expected $(_Expected). Deleted it; the next build downloads it again." />
 
-		<Exec Condition="'%(_NativeFile.Extract)' != '' and !Exists('$(_File)')" Command="tar -xzf &quot;$(_Folder)$(_Download)&quot; -C &quot;$(_Folder).&quot; &quot;%(_NativeFile.Extract)&quot;" />
+		<Exec Condition="'%(_NativeFile.Extract)' != '' and !Exists('$(_File)')" Command="tar -xzmf &quot;$(_Folder)$(_Download)&quot; -C &quot;$(_Folder).&quot; &quot;%(_NativeFile.Extract)&quot;" />
 
 		<!-- The tool sets the execute bit too, since NuGet drops it on extract. This covers the test output. -->
 		<Exec Condition="'%(_NativeFile.Executable)' == 'true' and !$([MSBuild]::IsOSPlatform('Windows'))" Command="chmod +x &quot;$(_File)&quot;" />

@@ -1,7 +1,7 @@
 <Project>
 
 	<!--
-		Bundles the browser viewers that `swagger` and `docs` inline into a page. A project lists one _WebAsset
+		Bundles the browser viewers that `docs` inlines into a page. A project lists one _WebAsset
 		per file: Url and Sha256. The build downloads each, checks the SHA-256, and copies it to viewer/ beside
 		the page template. The files are the same on every platform, so every RID package carries them.
 	-->

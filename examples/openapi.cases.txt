@@ -1,0 +1,222 @@
+ListBookings  GET /api/v1/bookings
+  ListBookings.200                       Send a valid request. Expect 200 with the RateLimit-Policy and RateLimit headers and a BookingPage body.
+  ListBookings.400                       Send a parameter the service can't read. Expect 400 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  ListBookings.401                       Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  ListBookings.403                       Send credentials without the bookings.read scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  ListBookings.429                       Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  ListBookings.500                       Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  ListBookings.query.venueId.required    Rejects a request without venueId with 400.
+  ListBookings.query.venueId.maxLength   Accepts 6 characters, rejects 7 with 400.
+  ListBookings.query.venueId.pattern     Accepts "LDN001", rejects "!" with 400.
+  ListBookings.query.status.maxItems     Accepts 4 items, rejects 5 with 400.
+  ListBookings.query.status.uniqueItems  Rejects two equal items with 400.
+  ListBookings.query.status[].enum       Accepts "confirmed", "cancelled", "attended" and "noShow", rejects "not-confirmed" with 400.
+  ListBookings.query.fromTime.maxLength  Accepts 33 characters, rejects 34 with 400.
+  ListBookings.query.fromTime.format     Rejects "2026-02-30T10:00:00Z" with 400.
+  ListBookings.query.page.type           Rejects abc with 400.
+  ListBookings.query.page.minimum        Accepts 1, rejects 0 with 400.
+  ListBookings.query.page.maximum        Accepts 100000, rejects 100001 with 400.
+  ListBookings.query.pageSize.type       Rejects abc with 400.
+  ListBookings.query.pageSize.minimum    Accepts 1, rejects 0 with 400.
+  ListBookings.query.pageSize.maximum    Accepts 100, rejects 101 with 400.
+
+CreateBooking  POST /api/v1/bookings
+  CreateBooking.201                               Send the videoCall example. Expect 201 with the Location, ETag, RateLimit-Policy and RateLimit headers and a Booking body.
+  CreateBooking.400                               Send a body the service can't read. Expect 400 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CreateBooking.401                               Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CreateBooking.403                               Send credentials without the bookings.write scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CreateBooking.409                               Send a request that conflicts with the current state. Expect 409 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CreateBooking.415                               Send the body with a Content-Type the operation doesn't take. Expect 415 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CreateBooking.422                               Send a body that breaks one of its rules. Expect 422 with the RateLimit-Policy and RateLimit headers and a HttpValidationProblemDetails body as application/problem+json.
+  CreateBooking.429                               Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  CreateBooking.500                               Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  CreateBooking.header.Idempotency-Key.required   Rejects a request without Idempotency-Key with 400.
+  CreateBooking.header.Idempotency-Key.maxLength  Accepts 36 characters, rejects 37 with 422.
+  CreateBooking.header.Idempotency-Key.format     Rejects "not-a-uuid" with 422.
+  CreateBooking.body.type                         Rejects a list with 400.
+  CreateBooking.body.additionalProperties         Rejects a field the schema doesn't define with 400.
+  CreateBooking.body.venueId.required             Rejects a request without venueId with 422.
+  CreateBooking.body.venueId.type                 Rejects 42 with 400.
+  CreateBooking.body.venueId.maxLength            Accepts 6 characters, rejects 7 with 422.
+  CreateBooking.body.venueId.pattern              Accepts "LDN001", rejects "!" with 422.
+  CreateBooking.body.customerId.required          Rejects a request without customerId with 422.
+  CreateBooking.body.customerId.type              Rejects 42 with 400.
+  CreateBooking.body.customerId.maxLength         Accepts 36 characters, rejects 37 with 422.
+  CreateBooking.body.customerId.format            Rejects "not-a-uuid" with 422.
+  CreateBooking.body.hostId.required              Rejects a request without hostId with 422.
+  CreateBooking.body.hostId.type                  Rejects 42 with 400.
+  CreateBooking.body.hostId.maxLength             Accepts 36 characters, rejects 37 with 422.
+  CreateBooking.body.hostId.format                Rejects "not-a-uuid" with 422.
+  CreateBooking.body.startTime.required           Rejects a request without startTime with 422.
+  CreateBooking.body.startTime.type               Rejects 42 with 400.
+  CreateBooking.body.startTime.maxLength          Accepts 33 characters, rejects 34 with 422.
+  CreateBooking.body.startTime.format             Rejects "2026-02-30T10:00:00Z" with 422.
+  CreateBooking.body.durationMinutes.required     Rejects a request without durationMinutes with 422.
+  CreateBooking.body.durationMinutes.type         Rejects "abc" with 400.
+  CreateBooking.body.durationMinutes.minimum      Accepts 15, rejects 0 with 422.
+  CreateBooking.body.durationMinutes.maximum      Accepts 480, rejects 495 with 422.
+  CreateBooking.body.durationMinutes.multipleOf   Accepts 15, rejects 16 with 422.
+  CreateBooking.body.kind.required                Rejects a request without kind with 422.
+  CreateBooking.body.kind.type                    Rejects 42 with 400.
+  CreateBooking.body.kind.enum                    Accepts "inPerson", "phone" and "video", rejects "not-inPerson" with 422.
+  CreateBooking.body.requests.type                Rejects an object with 400.
+  CreateBooking.body.requests.maxItems            Accepts 5 items, rejects 6 with 422.
+  CreateBooking.body.requests[].type              Rejects 42 with 400.
+  CreateBooking.body.requests[].maxLength         Accepts 200 characters, rejects 201 with 422.
+  CreateBooking.body.requests[].pattern           Accepts a value matching ^[^\u0000-\u001F\u007F]*$, rejects "\t" with 422.
+
+SearchBookings  POST /api/v1/bookings:search
+  SearchBookings.200                        Send a valid request. Expect 200 with the RateLimit-Policy and RateLimit headers and a BookingPage body.
+  SearchBookings.400                        Send a body the service can't read. Expect 400 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  SearchBookings.401                        Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  SearchBookings.403                        Send credentials without the bookings.read scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  SearchBookings.415                        Send the body with a Content-Type the operation doesn't take. Expect 415 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  SearchBookings.422                        Send a body that breaks one of its rules. Expect 422 with the RateLimit-Policy and RateLimit headers and a HttpValidationProblemDetails body as application/problem+json.
+  SearchBookings.429                        Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  SearchBookings.500                        Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  SearchBookings.query.page.type            Rejects abc with 400.
+  SearchBookings.query.page.minimum         Accepts 1, rejects 0 with 422.
+  SearchBookings.query.page.maximum         Accepts 100000, rejects 100001 with 422.
+  SearchBookings.query.pageSize.type        Rejects abc with 400.
+  SearchBookings.query.pageSize.minimum     Accepts 1, rejects 0 with 422.
+  SearchBookings.query.pageSize.maximum     Accepts 100, rejects 101 with 422.
+  SearchBookings.body.type                  Rejects a list with 400.
+  SearchBookings.body.additionalProperties  Rejects a field the schema doesn't define with 400.
+  SearchBookings.body.email.required        Rejects a request without email with 422.
+  SearchBookings.body.email.type            Rejects 42 with 400.
+  SearchBookings.body.email.maxLength       Accepts 254 characters, rejects 255 with 422.
+  SearchBookings.body.email.pattern         Accepts a value matching ^[^@\s]+@[^@\s]+$, rejects "!" with 422.
+  SearchBookings.body.email.format          Rejects "no-at-sign" with 422.
+  SearchBookings.body.fromDate.type         Rejects 42 with 400.
+  SearchBookings.body.fromDate.maxLength    Accepts 10 characters, rejects 11 with 422.
+  SearchBookings.body.fromDate.format       Rejects "2026-02-30" with 422.
+
+GetBooking  GET /api/v1/bookings/{bookingId}
+  GetBooking.200                             Send a valid request. Expect 200 with the ETag, RateLimit-Policy and RateLimit headers and a Booking body.
+  GetBooking.304                             Send the ETag of an earlier response as If-None-Match. Expect 304 with the ETag header.
+  GetBooking.401                             Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  GetBooking.403                             Send credentials without the bookings.read scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  GetBooking.404                             Use an unknown bookingId. Expect 404 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  GetBooking.429                             Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  GetBooking.500                             Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  GetBooking.path.bookingId.maxLength        Accepts 36 characters, rejects 37 with 422.
+  GetBooking.path.bookingId.format           Rejects "not-a-uuid" with 422.
+  GetBooking.header.If-None-Match.maxLength  Accepts 128 characters, rejects 129 with 422.
+  GetBooking.header.If-None-Match.pattern    Accepts "\"3\"", rejects "!" with 422.
+
+UpdateBooking  PATCH /api/v1/bookings/{bookingId}
+  UpdateBooking.200                              Send the moveLater example. Expect 200 with the ETag, RateLimit-Policy and RateLimit headers and a Booking body.
+  UpdateBooking.400                              Send a body the service can't read. Expect 400 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.401                              Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.403                              Send credentials without the bookings.write scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.404                              Use an unknown bookingId. Expect 404 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.409                              Send a request that conflicts with the current state. Expect 409 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.412                              Send an If-Match ETag that no longer matches. Expect 412 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.415                              Send the body with a Content-Type the operation doesn't take. Expect 415 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.422                              Send a body that breaks one of its rules. Expect 422 with the RateLimit-Policy and RateLimit headers and a HttpValidationProblemDetails body as application/problem+json.
+  UpdateBooking.428                              Leave out If-Match. Expect 428 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.429                              Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  UpdateBooking.500                              Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  UpdateBooking.path.bookingId.maxLength         Accepts 36 characters, rejects 37 with 422.
+  UpdateBooking.path.bookingId.format            Rejects "not-a-uuid" with 422.
+  UpdateBooking.header.If-Match.required         Rejects a request without If-Match with 400.
+  UpdateBooking.header.If-Match.maxLength        Accepts 128 characters, rejects 129 with 422.
+  UpdateBooking.header.If-Match.pattern          Accepts "\"3\"", rejects "!" with 422.
+  UpdateBooking.body.type                        Rejects a list with 400.
+  UpdateBooking.body.minProperties               Accepts 1 field, rejects an empty object with 422.
+  UpdateBooking.body.additionalProperties        Rejects a field the schema doesn't define with 400.
+  UpdateBooking.body.startTime.type              Rejects 42 with 400.
+  UpdateBooking.body.startTime.maxLength         Accepts 33 characters, rejects 34 with 422.
+  UpdateBooking.body.startTime.format            Rejects "2026-02-30T10:00:00Z" with 422.
+  UpdateBooking.body.durationMinutes.type        Rejects "abc" with 400.
+  UpdateBooking.body.durationMinutes.minimum     Accepts 15, rejects 0 with 422.
+  UpdateBooking.body.durationMinutes.maximum     Accepts 480, rejects 495 with 422.
+  UpdateBooking.body.durationMinutes.multipleOf  Accepts 15, rejects 16 with 422.
+  UpdateBooking.body.hostId.type                 Rejects 42 with 400.
+  UpdateBooking.body.hostId.maxLength            Accepts 36 characters, rejects 37 with 422.
+  UpdateBooking.body.hostId.format               Rejects "not-a-uuid" with 422.
+  UpdateBooking.body.kind.type                   Rejects 42 with 400.
+  UpdateBooking.body.kind.enum                   Accepts "inPerson", "phone" and "video", rejects "not-inPerson" with 422.
+  UpdateBooking.body.notes.type                  Rejects 42 with 400.
+  UpdateBooking.body.notes.maxLength             Accepts 2000 characters, rejects 2001 with 422.
+  UpdateBooking.body.notes.pattern               Accepts a value matching ^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$, rejects "\u0001" with 422.
+
+CancelBooking  POST /api/v1/bookings/{bookingId}:cancel
+  CancelBooking.200                        Send the byCustomer example. Expect 200 with the ETag, RateLimit-Policy and RateLimit headers and a Booking body.
+  CancelBooking.400                        Send a body the service can't read. Expect 400 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.401                        Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.403                        Send credentials without the bookings.write scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.404                        Use an unknown bookingId. Expect 404 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.412                        Send an If-Match ETag that no longer matches. Expect 412 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.415                        Send the body with a Content-Type the operation doesn't take. Expect 415 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.422                        Send a body that breaks one of its rules. Expect 422 with the RateLimit-Policy and RateLimit headers and a HttpValidationProblemDetails body as application/problem+json.
+  CancelBooking.428                        Leave out If-Match. Expect 428 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.429                        Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  CancelBooking.500                        Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  CancelBooking.path.bookingId.maxLength   Accepts 36 characters, rejects 37 with 422.
+  CancelBooking.path.bookingId.format      Rejects "not-a-uuid" with 422.
+  CancelBooking.header.If-Match.required   Rejects a request without If-Match with 400.
+  CancelBooking.header.If-Match.maxLength  Accepts 128 characters, rejects 129 with 422.
+  CancelBooking.header.If-Match.pattern    Accepts "\"3\"", rejects "!" with 422.
+  CancelBooking.body.oneOf                 Rejects a body that matches none of its 2 variants with 422.
+  CancelBooking.body.type                  Rejects a list with 400.
+  CancelBooking.body.additionalProperties  Rejects a field the schema doesn't define with 400.
+  CancelBooking.body.by.required           Rejects a request without by with 422.
+  CancelBooking.body.by.type               Rejects 42 with 400.
+  CancelBooking.body.by.const              Accepts "customer", rejects "not-customer" with 422.
+  CancelBooking.body.reason.type           Rejects 42 with 400.
+  CancelBooking.body.reason.maxLength      Accepts 200 characters, rejects 201 with 422.
+  CancelBooking.body.reason.pattern        Accepts a value matching ^[^\u0000-\u001F\u007F]*$, rejects "\t" with 422.
+  CancelBooking.body.code.required         Rejects a request without code with 422.
+  CancelBooking.body.code.type             Rejects 42 with 400.
+  CancelBooking.body.code.enum             Accepts "hostUnavailable", "venueClosed" and "bookedInError", rejects "not-hostUnavailable" with 422.
+
+AddAttachment  POST /api/v1/bookings/{bookingId}/attachments
+  AddAttachment.201                               Send a valid request. Expect 201 with the Location, RateLimit-Policy and RateLimit headers and an Attachment body.
+  AddAttachment.400                               Send a body the service can't read. Expect 400 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  AddAttachment.401                               Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  AddAttachment.403                               Send credentials without the bookings.write scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  AddAttachment.404                               Use an unknown bookingId. Expect 404 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  AddAttachment.415                               Send the body with a Content-Type the operation doesn't take. Expect 415 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  AddAttachment.422                               Send a body that breaks one of its rules. Expect 422 with the RateLimit-Policy and RateLimit headers and a HttpValidationProblemDetails body as application/problem+json.
+  AddAttachment.429                               Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  AddAttachment.500                               Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  AddAttachment.path.bookingId.maxLength          Accepts 36 characters, rejects 37 with 422.
+  AddAttachment.path.bookingId.format             Rejects "not-a-uuid" with 422.
+  AddAttachment.header.Idempotency-Key.required   Rejects a request without Idempotency-Key with 400.
+  AddAttachment.header.Idempotency-Key.maxLength  Accepts 36 characters, rejects 37 with 422.
+  AddAttachment.header.Idempotency-Key.format     Rejects "not-a-uuid" with 422.
+  AddAttachment.body.additionalProperties         Rejects a field the schema doesn't define with 400.
+  AddAttachment.body.file.required                Rejects a request without file with 422.
+  AddAttachment.body.file.maxLength               Accepts 10485760 bytes, rejects 10485761 with 422.
+  AddAttachment.body.title.maxLength              Accepts 200 characters, rejects 201 with 422.
+  AddAttachment.body.title.pattern                Accepts a value matching ^[^\u0000-\u001F\u007F]*$, rejects "\t" with 422.
+
+GetAttachment  GET /api/v1/bookings/{bookingId}/attachments/{attachmentId}
+  GetAttachment.200                          Send a valid request. Expect 200 with the RateLimit-Policy and RateLimit headers and a matching body as application/pdf.
+  GetAttachment.401                          Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  GetAttachment.403                          Send credentials without the bookings.read scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  GetAttachment.404                          Use an unknown bookingId or attachmentId. Expect 404 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  GetAttachment.429                          Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  GetAttachment.500                          Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  GetAttachment.path.bookingId.maxLength     Accepts 36 characters, rejects 37 with 422.
+  GetAttachment.path.bookingId.format        Rejects "not-a-uuid" with 422.
+  GetAttachment.path.attachmentId.maxLength  Accepts 36 characters, rejects 37 with 422.
+  GetAttachment.path.attachmentId.format     Rejects "not-a-uuid" with 422.
+
+ListVenueBookings  GET /api/v1/venues/{venueId}/bookings
+  ListVenueBookings.200                     Send a valid request. Expect 200 with the Deprecation, Sunset, RateLimit-Policy and RateLimit headers and a BookingPage body.
+  ListVenueBookings.400                     Send a parameter the service can't read. Expect 400 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  ListVenueBookings.401                     Send no credentials. Expect 401 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  ListVenueBookings.403                     Send credentials without the bookings.read scope. Expect 403 with the RateLimit-Policy and RateLimit headers and a ProblemDetails body as application/problem+json.
+  ListVenueBookings.429                     Go over the rate limit. Expect 429 with the RateLimit-Policy, RateLimit and Retry-After headers and a ProblemDetails body as application/problem+json.
+  ListVenueBookings.500                     Make a dependency fail. Expect 500 with a ProblemDetails body as application/problem+json.
+  ListVenueBookings.path.venueId.maxLength  Accepts 6 characters, rejects 7 with 400.
+  ListVenueBookings.path.venueId.pattern    Accepts "LDN001", rejects "!" with 400.
+  ListVenueBookings.query.page.type         Rejects abc with 400.
+  ListVenueBookings.query.page.minimum      Accepts 1, rejects 0 with 400.
+  ListVenueBookings.query.page.maximum      Accepts 100000, rejects 100001 with 400.
+  ListVenueBookings.query.pageSize.type     Rejects abc with 400.
+  ListVenueBookings.query.pageSize.minimum  Accepts 1, rejects 0 with 400.
+  ListVenueBookings.query.pageSize.maximum  Accepts 100, rejects 101 with 400.
+

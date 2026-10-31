@@ -19,6 +19,12 @@ on:
       - src/Digitals.OpenApi/**
       - tests/Digitals.OpenApi.Tests/**
       - src/ViewerPage.cs
+      - src/ContractYaml.cs
+      - src/SchemaRules.cs
+      - src/CaseList.cs
+      - src/Sentences.cs
+      - src/VersionCheck.cs
+      - tests/VersionCheckTests.cs
       - src/WebAssets.targets
       - examples/openapi.yaml
       - docs/rules/openapi.md
@@ -45,20 +51,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # MinVer needs the tags; a shallow clone versions everything as 0.0.0-alpha.
           fetch-depth: 0
 
       - name: ⚙️ Use .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
       # The tool packs once per platform with that platform's binaries, so keep the downloads between
       # runs. A version or hash change changes the key.
       - name: 💾 Cache Bundled Binaries
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             src/Digitals.OpenApi/obj/native/*.tar.gz
@@ -66,7 +72,7 @@ jobs:
           key: openapi-native-${{ hashFiles('src/WebAssets.targets', 'src/Digitals.OpenApi/*.targets', 'src/Digitals.OpenApi/*.csproj') }}
 
       - name: 🎨 Format Check
-        run: dotnet format --verify-no-changes --include src/Digitals.OpenApi/ tests/Digitals.OpenApi.Tests/ src/ViewerPage.cs
+        run: dotnet format --verify-no-changes --include src/Digitals.OpenApi/ tests/Digitals.OpenApi.Tests/ src/ViewerPage.cs src/ContractYaml.cs src/SchemaRules.cs src/CaseList.cs src/Sentences.cs src/VersionCheck.cs tests/VersionCheckTests.cs
 
       - name: 🔬 Tests + Coverage Gate
         shell: pwsh
@@ -77,7 +83,7 @@ jobs:
         run: ./scripts/pack.ps1 -Package OpenApi
 
       - name: 📤 Upload Package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi-nupkg
           path: artifacts/*.nupkg
@@ -92,12 +98,12 @@ jobs:
       contents: write   # the GitHub Release
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: 📥 Download Package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: openapi-nupkg
           path: artifacts

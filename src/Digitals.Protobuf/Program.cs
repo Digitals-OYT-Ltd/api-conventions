@@ -18,6 +18,7 @@ internal static class Program
           dt-protobuf format <input> [options]              Fail when a file isn't formatted; --write fixes it
           dt-protobuf breaking <base> <revision> [options]  Fail on a breaking change between two versions
           dt-protobuf docs <input> [<out.html>]             Write the contract as a documentation page
+          dt-protobuf cases <dir> [options]                 List the test cases the contract implies
           dt-protobuf ruleset [<out.yaml>] [--baseline]     Print or write the buf config
           dt-protobuf buf <args>                            Run the bundled buf
 
@@ -28,6 +29,12 @@ internal static class Program
         instead. Options after the arguments go to buf unchanged, for example --error-format github-actions.
         buf exits 100 when it finds a problem. docs writes one self-contained page, by default <input's
         name>.html in the current directory, that opens offline.
+
+        A directory that imports buf/validate/validate.proto without its own copy gets the bundled protovalidate.
+
+        cases reads the .proto files in a directory, with protovalidate bundled for those that import it. It lists
+        a case for each RPC's success, each status its comment names, and each protovalidate rule on its
+        request. --format json gives them to an agent, and --only calls or --only rules lists one kind.
         """;
 
     private const string RulesetFile = "buf.yaml";
@@ -39,6 +46,11 @@ internal static class Program
         {
             Console.Out.Write(Usage);
             return args.Length == 0 ? 1 : 0;
+        }
+
+        if (VersionCheck.Stop("Digitals.Protobuf", "dt-protobuf"))
+        {
+            return 1;
         }
 
         try
@@ -59,6 +71,7 @@ internal static class Program
         ["format"] = Format,
         ["breaking"] = Breaking,
         ["docs"] = Docs,
+        ["cases"] = Cases,
         ["ruleset"] = WriteRuleset,
         ["buf"] = Buf,
     };
@@ -70,7 +83,7 @@ internal static class Program
     private static int Lint(string[] args)
     {
         var (input, options) = Split(args, 1, 1);
-        return Buf(["lint", input[0], .. WithConfig(options)]);
+        return Buf(input, WithConfig(options), exclude: true, (copies, rest) => ["lint", copies[0], .. rest]);
     }
 
     // Without --write, buf only reports: --diff prints the change and --exit-code fails on one.
@@ -89,7 +102,8 @@ internal static class Program
         string[] againstConfig = withConfig.Contains("--against-config")
             ? []
             : ["--against-config", withConfig[Array.IndexOf(withConfig, "--config") + 1]];
-        return Buf(["breaking", inputs[1], "--against", inputs[0], .. againstConfig, .. withConfig]);
+        return Buf(inputs, [.. againstConfig, .. withConfig], exclude: false,
+            (copies, rest) => ["breaking", copies[1], "--against", copies[0], .. rest]);
     }
 
     // buf compiles the input and hands it to protoc-gen-doc, whose JSON the page renders. Only the input's own
@@ -107,7 +121,8 @@ internal static class Program
         {
             var plugin = new { local = Executable("protoc-gen-doc"), @out = work.FullName, opt = "json,contract.json" };
             var template = JsonSerializer.Serialize(new { version = "v2", plugins = new[] { plugin } });
-            var exitCode = Buf(["generate", inputs[0], "--template", template]);
+            var exitCode = Buf(inputs[..1], ["--template", template], exclude: true,
+                (copies, rest) => ["generate", copies[0], .. rest]);
             if (exitCode != 0)
             {
                 return exitCode;
@@ -124,6 +139,58 @@ internal static class Program
         {
             work.Delete(recursive: true);
         }
+    }
+
+    private static int Cases(string[] args)
+    {
+        var (inputs, options) = Split(args, 1, 1);
+        var settings = Settings(options, new(StringComparer.Ordinal)
+        {
+            ["--format"] = ["text", "json"],
+            ["--only"] = ["calls", "rules"],
+        });
+        if (!Directory.Exists(inputs[0]))
+        {
+            throw new UsageException($"no directory at {inputs[0]}");
+        }
+
+        var (contract, errors) = Contract.Read(inputs[0], Executable("buf"));
+        if (contract is null)
+        {
+            foreach (var error in errors)
+            {
+                Console.Error.WriteLine($"dt-protobuf cases: {error}");
+            }
+
+            return 1;
+        }
+
+        var only = settings.GetValueOrDefault("--only");
+        var cases = TestCases.From(contract, calls: only != "rules", rules: only != "calls");
+        CaseList.Write(cases, settings.GetValueOrDefault("--format") == "json", Heading);
+        return 0;
+    }
+
+    private static string Heading(TestCase found) =>
+        $"{found.Kind} {found.Path}{(found.Deprecated ? " (deprecated)" : "")}";
+
+    private static Dictionary<string, string> Settings(string[] options, Dictionary<string, string[]> allowed)
+    {
+        var settings = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < options.Length; i += 2)
+        {
+            if (!allowed.TryGetValue(options[i], out var values))
+            {
+                throw new UsageException($"unknown option '{options[i]}'");
+            }
+
+            var value = options.ElementAtOrDefault(i + 1);
+            settings[options[i]] = value is not null && values.Contains(value)
+                ? value
+                : throw new UsageException($"{options[i]} takes {string.Join(" or ", values)}");
+        }
+
+        return settings;
     }
 
     /// <summary>
@@ -179,6 +246,23 @@ internal static class Program
         File.Copy(source, path, overwrite: true);
         Console.Error.WriteLine($"Wrote {path}");
         return 0;
+    }
+
+    /// <summary>
+    /// Runs the command buf builds from the inputs and options. When an input is a directory that imports
+    /// protovalidate without bringing it, every input goes through a copy with the bundled one beside it.
+    /// </summary>
+    private static int Buf(
+        string[] inputs, string[] options, bool exclude, Func<string[], string[], string[]> command)
+    {
+        if (!inputs.Any(Staging.Needs))
+        {
+            return Buf(command(inputs, options));
+        }
+
+        using var staging = new Staging(Executable("buf"));
+        string[] copies = [.. inputs.Select(staging.Add)];
+        return staging.Run(command(copies, staging.Options(options, exclude)));
     }
 
     private static int Buf(string[] args)

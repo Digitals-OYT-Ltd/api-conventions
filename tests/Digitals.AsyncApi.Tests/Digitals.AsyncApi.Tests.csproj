@@ -9,6 +9,10 @@
 		<PackageReference Include="Digitals.Testing" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<Compile Include="..\VersionCheckTests.cs" Link="VersionCheckTests.cs" />
+	</ItemGroup>
+
 	<!-- Brings the tool, its rulesets and this machine's Spectral into the test output. -->
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Digitals.AsyncApi\Digitals.AsyncApi.csproj" />

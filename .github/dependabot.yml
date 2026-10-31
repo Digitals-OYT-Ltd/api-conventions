@@ -1,0 +1,26 @@
+# Dependabot: a weekly PR for each new NuGet package, GitHub Action and .NET SDK release. The binaries the
+# tools bundle are MSBuild properties with hashes, which Dependabot can't read; .github/workflows/security.yml
+# watches those.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # One PR for the minor and patch bumps, a PR of its own for each major.
+      nuget:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        update-types: [minor, patch]
+
+  - package-ecosystem: dotnet-sdk
+    directory: /
+    schedule:
+      interval: weekly

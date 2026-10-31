@@ -1,0 +1,120 @@
+# Security: once a week, checks what the dt-* tools ship for known vulnerabilities. A finding opens an issue,
+# or updates the open one, and the run stays green; only a scan that can't run fails it. Nothing here changes a
+# version: once upstream releases a fixed build, bump it as AGENTS.md describes. The versions come from the
+# csprojs, so a bump needs no change here; a new bundled tool does.
+#
+# What each check sees:
+#   - buf, protoc-gen-doc, vacuum and oasdiff are Go binaries that record every module and the Go version they
+#     were built with, so govulncheck reads the binary as it ships, dependencies and standard library included.
+#   - Swagger UI, AsyncAPI React and Spectral are looked up on OSV.dev by their npm name and version. Spectral's
+#     binary also carries a Node.js runtime, which this doesn't see.
+#   - protovalidate ships only validate.proto, a schema with no code, so there is nothing to check.
+#   - NuGet packages, direct and transitive, through dotnet's own audit.
+name: Security
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  TITLE: Known vulnerabilities in the bundled tools
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+
+      - name: ⚙️ Use .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: ⚙️ Use Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+
+      # A build downloads this platform's binaries into each tool's native/ folder, checked against their hashes.
+      - name: 🗜️ Fetch Bundled Binaries
+        run: |
+          for tool in OpenApi AsyncApi Protobuf; do
+            dotnet build "src/Digitals.$tool" --nologo --verbosity quiet
+          done
+          touch "$RUNNER_TEMP/findings.md"
+
+      - name: 🔎 Go Binaries
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          for tool in buf protoc-gen-doc vacuum oasdiff; do
+            binary=$(find src -path '*/bin/*/native/*' -name "$tool" -type f | head -1)
+            if [ -z "$binary" ]; then echo "::error::No $tool binary in a build output"; exit 1; fi
+            # Exit 3 means it found something; any other failure is the scan's own.
+            code=0
+            output=$("$(go env GOPATH)/bin/govulncheck" -mode=binary "$binary" 2>&1) || code=$?
+            if [ "$code" -eq 3 ]; then
+              printf '### %s\n\n```text\n%s\n```\n\n' "$tool" "$output" >> "$RUNNER_TEMP/findings.md"
+            elif [ "$code" -ne 0 ]; then
+              echo "$output"; exit "$code"
+            fi
+          done
+
+      - name: 🔎 npm Packages
+        run: |
+          check() {
+            local version
+            version=$(grep -oP "(?<=<$2>)[^<]+" "$3")
+            if [ -z "$version" ]; then echo "::error::No $2 in $3"; exit 1; fi
+            local query
+            query=$(jq -n --arg name "$1" --arg version "$version" \
+              '{package: {name: $name, ecosystem: "npm"}, version: $version}')
+            local found
+            found=$(curl -fsS https://api.osv.dev/v1/query -d "$query" \
+              | jq -r '.vulns // [] | .[] | "- [\(.id)](https://osv.dev/vulnerability/\(.id)): \(.summary // "no summary")"')
+            if [ -n "$found" ]; then
+              printf '### %s %s\n\n%s\n\n' "$1" "$version" "$found" >> "$RUNNER_TEMP/findings.md"
+            fi
+          }
+          check swagger-ui-dist SwaggerUiVersion src/Digitals.OpenApi/Digitals.OpenApi.csproj
+          check @asyncapi/react-component AsyncApiReactVersion src/Digitals.AsyncApi/Digitals.AsyncApi.csproj
+          check @stoplight/spectral-cli SpectralVersion src/Digitals.AsyncApi/Digitals.AsyncApi.csproj
+
+      - name: 🔎 NuGet Packages
+        run: |
+          dotnet restore --nologo --verbosity quiet
+          output=$(dotnet list package --vulnerable --include-transitive)
+          if grep -q "has the following vulnerable packages" <<< "$output"; then
+            printf '### NuGet packages\n\n```text\n%s\n```\n\n' "$output" >> "$RUNNER_TEMP/findings.md"
+          fi
+
+      # One open issue at a time, found by its title. A change in the findings rewrites its body and comments,
+      # so watchers hear about it; the same findings again leave it alone.
+      - name: 📣 Open or Update the Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ ! -s "$RUNNER_TEMP/findings.md" ]; then echo "Nothing found." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          body="$RUNNER_TEMP/body.md"
+          {
+            echo "The weekly security scan found known vulnerabilities in what the dt-* tools ship."
+            echo "Once upstream releases a fixed build, bump its version and hashes as AGENTS.md describes."
+            echo
+            cat "$RUNNER_TEMP/findings.md"
+          } > "$body"
+          cat "$body" >> "$GITHUB_STEP_SUMMARY"
+          number=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq 'map(select(.title == env.TITLE))[0].number // empty')
+          if [ -z "$number" ]; then
+            gh issue create --title "$TITLE" --body-file "$body"
+          elif [ "$(gh issue view "$number" --json body --jq .body)" != "$(cat "$body")" ]; then
+            gh issue edit "$number" --body-file "$body"
+            gh issue comment "$number" --body "The findings changed: $RUN"
+          fi

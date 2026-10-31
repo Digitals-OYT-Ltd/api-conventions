@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package digitals.bookings.v1;
 
+import "buf/validate/validate.proto";
+
 // Documents attached to a booking, such as a room layout. Files go in and out in chunks of up to
 // 1 MiB, so a call never holds a whole file in one message.
 service AttachmentService {
@@ -16,23 +18,36 @@ service AttachmentService {
 message AddAttachmentRequest {
   // The first message carries the metadata and every message after it a chunk.
   oneof part {
+    option (buf.validate.oneof).required = true;
+
     // What the document is. Only in the first message.
     AttachmentMetadata metadata = 1;
     // The next part of the file, up to 1 MiB.
-    bytes chunk = 2;
+    bytes chunk = 2 [(buf.validate.field).bytes.max_len = 1048576];
   }
 }
 
 // What a document is.
 message AttachmentMetadata {
   // The booking to attach it to.
-  string booking_id = 1;
-  // The file name, shown to the host.
-  string file_name = 2;
+  string booking_id = 1 [(buf.validate.field).string.uuid = true];
+  // The file name, shown to the host, from 1 to 255 characters.
+  string file_name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
   // The media type, application/pdf or image/png.
-  string content_type = 3;
+  string content_type = 3 [(buf.validate.field).string = {
+    in: [
+      "application/pdf",
+      "image/png"
+    ]
+  }];
   // The size in bytes, up to 20 MiB. The upload fails with INVALID_ARGUMENT when the chunks add up to more.
-  int64 size_bytes = 4;
+  int64 size_bytes = 4 [(buf.validate.field).int64 = {
+    gt: 0
+    lte: 20971520
+  }];
 }
 
 // The document attached.
@@ -44,9 +59,9 @@ message AddAttachmentResponse {
 // Asks for a document.
 message GetAttachmentRequest {
   // The booking it's attached to.
-  string booking_id = 1;
+  string booking_id = 1 [(buf.validate.field).string.uuid = true];
   // The attachment's ID.
-  string attachment_id = 2;
+  string attachment_id = 2 [(buf.validate.field).string.uuid = true];
 }
 
 // One chunk of a download.

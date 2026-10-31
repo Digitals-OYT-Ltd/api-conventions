@@ -7,7 +7,7 @@ namespace Digitals;
 /// <summary>
 /// Writes a contract as one HTML page: a template from viewer/ with the viewer's script and styles and the
 /// contract inlined, so the page opens from a file with no network and can be sent as an attachment.
-/// Shared by dt-openapi swagger, dt-asyncapi docs and dt-protobuf docs.
+/// Shared by every tool's docs command.
 /// </summary>
 internal static partial class ViewerPage
 {

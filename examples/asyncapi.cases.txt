@@ -1,0 +1,37 @@
+PublishBookingConfirmed  send bookings.v1.confirmed
+  PublishBookingConfirmed.BookingConfirmed  Make the service send a BookingConfirmed. Expect it on bookings.v1.confirmed with the messageId, sentTime and traceparent headers, a Kafka key and a Booking payload.
+
+PublishBookingChanged  send bookings.v1.{venueId}.changed
+  PublishBookingChanged.BookingMoved      Make the service send a BookingMoved. Expect it on bookings.v1.{venueId}.changed with the messageId, sentTime and traceparent headers and a BookingMovedPayload payload.
+  PublishBookingChanged.BookingCancelled  Make the service send a BookingCancelled. Expect it on bookings.v1.{venueId}.changed with the messageId, sentTime and traceparent headers and a BookingCancelledPayload payload.
+
+AnswerAvailabilityRequest  receive availability.v1.requests
+  AnswerAvailabilityRequest.AvailabilityRequested                              Send the nextWeekVideo example to availability.v1.requests. Expect an AvailabilityReplied to the address in the request's replyTo header, with a correlationId header that pairs it with the request.
+  AnswerAvailabilityRequest.duplicate                                          Send the same message twice. Expect it processed once.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.messageId.required   Rejects a message without messageId. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.messageId.type       Rejects 42. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.messageId.maxLength  Accepts 36 characters, rejects 37. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.messageId.format     Rejects "not-a-uuid". Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.sentTime.required    Rejects a message without sentTime. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.sentTime.type        Rejects 42. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.sentTime.maxLength   Accepts 33 characters, rejects 34. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.sentTime.format      Rejects "2026-02-30T10:00:00Z". Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.replyTo.required     Rejects a message without replyTo. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.replyTo.type         Rejects 42. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.headers.replyTo.maxLength    Accepts 249 characters, rejects 250. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.type                 Rejects a list. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.venueId.required     Rejects a message without venueId. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.venueId.type         Rejects 42. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.venueId.maxLength    Accepts 6 characters, rejects 7. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.venueId.pattern      Accepts a value matching ^[A-Z]{3}[0-9]{3}$, rejects "!". Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.fromDate.required    Rejects a message without fromDate. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.fromDate.type        Rejects 42. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.fromDate.maxLength   Accepts 10 characters, rejects 11. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.fromDate.format      Rejects "2026-02-30". Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.toDate.required      Rejects a message without toDate. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.toDate.type          Rejects 42. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.toDate.maxLength     Accepts 10 characters, rejects 11. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.toDate.format        Rejects "2026-02-30". Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.kind.type            Rejects 42. Expect it not processed.
+  AnswerAvailabilityRequest.AvailabilityRequested.payload.kind.enum            Accepts "inPerson", "phone" and "video", rejects "not-inPerson". Expect it not processed.
+

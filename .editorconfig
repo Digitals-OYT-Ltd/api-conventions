@@ -22,3 +22,13 @@ max_line_length = 120
 # RCS0056: each fixture is a line of flow-style YAML that vacuum reads as written, so wrapping it would
 # change the contract under test.
 dotnet_diagnostic.RCS0056.severity = none
+
+[tests/Digitals.{OpenApi,AsyncApi,Protobuf}.Tests/CasesTests.cs]
+# RCS0056: the contract is flow-style YAML like RulesetTests.cs, or a .proto with its rules on one line, and each
+# expected detail is one line of the tool's output, which reads best whole.
+dotnet_diagnostic.RCS0056.severity = none
+
+[src/VersionCheck.cs]
+# DT00003: a tool run makes one request and exits, with no DI container to hold an IHttpClientFactory, so a
+# client per run exhausts nothing.
+dotnet_diagnostic.DT00003.severity = none

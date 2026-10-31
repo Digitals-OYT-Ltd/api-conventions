@@ -15,6 +15,7 @@ internal static class Program
         Usage:
           dt-asyncapi lint <spec> [options]                 Fail when the document breaks a rule
           dt-asyncapi docs <spec> [<out.html>]              Write the contract as a documentation page
+          dt-asyncapi cases <spec> [options]                List the test cases the contract implies
           dt-asyncapi ruleset [<out.yaml>] [--baseline]     Print or write the ruleset, for an editor or CI
           dt-asyncapi spectral <args>                       Run the bundled Spectral
 
@@ -24,6 +25,10 @@ internal static class Program
         ruleset instead. Options after the arguments go to Spectral unchanged, for example
         --format github-actions. Every finding fails lint, whatever its severity. docs writes one
         self-contained page, by default beside the spec with .html, that opens offline.
+
+        cases reads an AsyncAPI 3 document from a file. It lists a case for each message an operation sends or
+        receives, and for each rule on a received message's headers and payload. --format json gives
+        them to an agent, and --only messages or --only rules lists one kind.
         """;
 
     private const string RulesetFile = "digitals.yaml";
@@ -36,6 +41,11 @@ internal static class Program
         {
             Console.Out.Write(Usage);
             return args.Length == 0 ? 1 : 0;
+        }
+
+        if (VersionCheck.Stop("Digitals.AsyncApi", "dt-asyncapi"))
+        {
+            return 1;
         }
 
         try
@@ -54,6 +64,7 @@ internal static class Program
     {
         ["lint"] = Lint,
         ["docs"] = Docs,
+        ["cases"] = Cases,
         ["ruleset"] = WriteRuleset,
         ["spectral"] = Spectral,
     };
@@ -88,6 +99,55 @@ internal static class Program
             "asyncapi.html", "asyncapi-react.js", "asyncapi-react.css", files[0], page, Path.GetFileName(files[0]));
         Console.Error.WriteLine($"Wrote {page}");
         return 0;
+    }
+
+    private static int Cases(string[] args)
+    {
+        var (spec, options) = Split(args, 1, 1);
+        var settings = Settings(options, new(StringComparer.Ordinal)
+        {
+            ["--format"] = ["text", "json"],
+            ["--only"] = ["messages", "rules"],
+        });
+        if (!File.Exists(spec[0]))
+        {
+            throw new UsageException($"no file at {spec[0]}");
+        }
+
+        var (operations, problems) = Contract.Read(spec[0]);
+        foreach (var problem in problems)
+        {
+            Console.Error.WriteLine($"dt-asyncapi cases: {spec[0]}: {problem}");
+        }
+
+        if (operations is null)
+        {
+            return 1;
+        }
+
+        var only = settings.GetValueOrDefault("--only");
+        var cases = TestCases.From(operations, messages: only != "rules", rules: only != "messages");
+        CaseList.Write(cases, settings.GetValueOrDefault("--format") == "json", c => $"{c.Action} {c.Channel}");
+        return 0;
+    }
+
+    private static Dictionary<string, string> Settings(string[] options, Dictionary<string, string[]> allowed)
+    {
+        var settings = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < options.Length; i += 2)
+        {
+            if (!allowed.TryGetValue(options[i], out var values))
+            {
+                throw new UsageException($"unknown option '{options[i]}'");
+            }
+
+            var value = options.ElementAtOrDefault(i + 1);
+            settings[options[i]] = value is not null && values.Contains(value)
+                ? value
+                : throw new UsageException($"{options[i]} takes {string.Join(" or ", values)}");
+        }
+
+        return settings;
     }
 
     /// <summary>

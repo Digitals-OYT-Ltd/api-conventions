@@ -9,6 +9,10 @@
 		<PackageReference Include="Digitals.Testing" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<Compile Include="..\VersionCheckTests.cs" Link="VersionCheckTests.cs" />
+	</ItemGroup>
+
 	<!-- Brings the tool, its ruleset and this machine's vacuum and oasdiff into the test output. -->
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Digitals.OpenApi\Digitals.OpenApi.csproj" />

@@ -1,0 +1,48 @@
+# Unlist: hides one version of a tool on nuget.org, the pointer package and its six platform packages, so new
+# installs and floating versions skip it. An exact pin still restores it, so deprecate it and publish an advisory
+# too: SECURITY.md has every step. Run it from the Actions tab.
+#
+# Auth: the trusted-publishing key only pushes, so this needs the repository secret NUGET_UNLIST_KEY: a nuget.org
+# API key with only the Unlist scope, limited to the Digitals.OpenApi*, Digitals.AsyncApi* and Digitals.Protobuf*
+# packages. Don't keep one: create it just before a run and delete the key and the secret after, as SECURITY.md says.
+name: Unlist
+
+on:
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: The tool's package
+        type: choice
+        options: [Digitals.OpenApi, Digitals.AsyncApi, Digitals.Protobuf]
+      version:
+        description: The version to unlist, such as 1.2.0
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  unlist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⚙️ Use .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 🙈 Unlist
+        env:
+          TOOL: ${{ inputs.tool }}
+          VERSION: ${{ inputs.version }}
+          NUGET_UNLIST_KEY: ${{ secrets.NUGET_UNLIST_KEY }}
+        run: |
+          if [ -z "$NUGET_UNLIST_KEY" ]; then
+            echo "::error::No NUGET_UNLIST_KEY secret. SECURITY.md says how to make one for this run."; exit 1
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$VERSION' isn't a version such as 1.2.0"; exit 1
+          fi
+          for package in "$TOOL".{linux,osx,win}-{x64,arm64} "$TOOL"; do
+            dotnet nuget delete "$package" "$VERSION" --source https://api.nuget.org/v3/index.json \
+              --api-key "$NUGET_UNLIST_KEY" --non-interactive
+          done

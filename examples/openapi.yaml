@@ -1,5 +1,5 @@
 # An HTTP API that uses every part of OpenAPI 3.1 Swagger UI shows, and passes the full Digitals ruleset.
-# Render it with: dt-openapi swagger examples/openapi.yaml
+# Render it with: dt-openapi docs examples/openapi.yaml
 # The same bookings as examples/asyncapi.yaml, which describes the events this API's writes publish.
 openapi: 3.1.1
 info:

@@ -244,13 +244,13 @@ public sealed class CommandTests
         Assert.Equal(2, Vacuum.Tool("lint", Write(Design), "--baseline", "--ruleset", "mine.yaml").ExitCode);
 
     [Fact]
-    public void Swagger_WritesAPageThatNeedsNoNetwork()
+    public void Docs_WritesAPageThatNeedsNoNetwork()
     {
         var spec = Write(Design);
         var page = Path.ChangeExtension(spec, ".html");
         try
         {
-            Assert.Equal(0, Vacuum.Tool("swagger", spec).ExitCode);
+            Assert.Equal(0, Vacuum.Tool("docs", spec).ExitCode);
 
             var html = File.ReadAllText(page);
             Assert.Contains("SwaggerUIBundle(", html, StringComparison.Ordinal);
@@ -268,7 +268,7 @@ public sealed class CommandTests
     }
 
     [Fact]
-    public void Swagger_ScriptInTheContract_StaysText()
+    public void Docs_ScriptInTheContract_StaysText()
     {
         var page = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.html");
         try
@@ -277,7 +277,7 @@ public sealed class CommandTests
                 "A note as the service stores it.",
                 "'</script><img src=x onerror=alert(1)>'",
                 StringComparison.Ordinal));
-            Assert.Equal(0, Vacuum.Tool("swagger", spec, page).ExitCode);
+            Assert.Equal(0, Vacuum.Tool("docs", spec, page).ExitCode);
             Assert.DoesNotContain("</script><img", File.ReadAllText(page), StringComparison.Ordinal);
         }
         finally
@@ -376,8 +376,8 @@ public sealed class CommandTests
     [InlineData("expected at least 1 argument(s)", "lint")]
     [InlineData("expected 1 or 2 argument(s)", "report")]
     [InlineData("unknown command 'unknown'", "unknown")]
-    [InlineData("no file at no-such-file.yaml", "swagger", "no-such-file.yaml")]
-    [InlineData("unknown option '--theme'", "swagger", "openapi.yaml", "--theme", "dark")]
+    [InlineData("no file at no-such-file.yaml", "docs", "no-such-file.yaml")]
+    [InlineData("unknown option '--theme'", "docs", "openapi.yaml", "--theme", "dark")]
     [InlineData("unknown option '--theme'", "ruleset", "--theme", "dark")]
     public void BadUsage_ExitsTwoAndSaysWhy(string reason, params string[] args)
     {

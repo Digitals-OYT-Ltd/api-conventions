@@ -152,7 +152,7 @@ A path is listed once. YAML keeps only the last of two equal keys, so the first 
 -    get: ...
 ```
 
-> **Note:** vacuum 0.33 refuses to parse a document with a repeated path key, so `lint` stops with `Failed to parse specification` before this rule runs. Either way the document fails.
+> **Note:** vacuum 0.35 refuses to parse a document with a repeated path key, so `lint` stops with `mapping key "/p" already defined` before this rule runs. Either way the document fails.
 
 ### `duplicated-entry-in-enum`
 
@@ -243,7 +243,7 @@ The OpenAPI 3.1 twin of `no-$ref-siblings`. It stays on in case a vacuum release
    description: Where the project is in its lifecycle.   # allowed in 3.1
 ```
 
-> **Note:** vacuum 0.33 never reports this rule, even with keys other than `description` and `summary` beside a `$ref`.
+> **Note:** vacuum 0.35 never reports this rule, even with keys other than `description` and `summary` beside a `$ref`.
 
 ### `no-ambiguous-paths`
 
@@ -844,7 +844,7 @@ Every operation has a 2xx or 3xx response. A contract that only describes failur
 
 <img alt="Baseline" src="https://img.shields.io/badge/level-Baseline-0969da"> <img alt="From vacuum" src="https://img.shields.io/badge/from-vacuum-57606a">
 
-A POST has a success response. In vacuum 0.33 it fires in the same cases as `operation-success-response`.
+A POST has a success response. In vacuum 0.35 it fires in the same cases as `operation-success-response`.
 
 ```diff
  post:
@@ -1612,7 +1612,7 @@ No outdated HTTP authentication scheme, such as `negotiate` or `oauth` (OAuth 1)
 
 Standard: OWASP API2:2023
 
-> **Note:** vacuum 0.33 reports `owasp-no-http-basic` for `negotiate` too.
+> **Note:** vacuum 0.35 reports `owasp-no-http-basic` for `negotiate` too.
 
 ### `owasp-auth-urls-https`
 

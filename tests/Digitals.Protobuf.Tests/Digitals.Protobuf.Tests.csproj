@@ -9,6 +9,10 @@
 		<PackageReference Include="Digitals.Testing" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<Compile Include="..\VersionCheckTests.cs" Link="VersionCheckTests.cs" />
+	</ItemGroup>
+
 	<!-- Brings the tool, its buf configs and this machine's buf into the test output. -->
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Digitals.Protobuf\Digitals.Protobuf.csproj" />

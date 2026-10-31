@@ -7,6 +7,7 @@ syntax = "proto3";
 
 package digitals.bookings.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
@@ -97,15 +98,21 @@ enum BookingStatus {
 // Asks for one page of a venue's bookings.
 message ListBookingsRequest {
   // The venue's code.
-  string venue_id = 1;
-  // Only bookings in one of these statuses. Empty means every status.
-  repeated BookingStatus statuses = 2;
+  string venue_id = 1 [(buf.validate.field).string.pattern = "^[A-Z]{3}[0-9]{3}$"];
+  // Only bookings in one of these statuses, each named once. Empty means every status.
+  repeated BookingStatus statuses = 2 [
+    (buf.validate.field).repeated.unique = true,
+    (buf.validate.field).repeated.items.enum.defined_only = true
+  ];
   // Only bookings that start at or after this time. Absent means now.
   google.protobuf.Timestamp from_time = 3;
   // Which page to return, from 1. 0 means 1. A page past the last returns no items.
-  int32 page = 4;
+  int32 page = 4 [(buf.validate.field).int32.gte = 0];
   // The most items to return, from 1 to 100. 0 means 20. Above 100 fails with INVALID_ARGUMENT.
-  int32 page_size = 5;
+  int32 page_size = 5 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
 }
 
 // One page of bookings.
@@ -123,7 +130,7 @@ message ListBookingsResponse {
 // Asks for one booking.
 message GetBookingRequest {
   // The booking's ID.
-  string booking_id = 1;
+  string booking_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // The booking asked for.
@@ -137,17 +144,26 @@ message GetBookingResponse {
 // Asks for a new booking.
 message CreateBookingRequest {
   // A UUID the caller picks. A retry with the same one returns the first result.
-  string request_id = 1;
+  string request_id = 1 [(buf.validate.field).string.uuid = true];
   // The venue's code.
-  string venue_id = 2;
+  string venue_id = 2 [(buf.validate.field).string.pattern = "^[A-Z]{3}[0-9]{3}$"];
   // The customer's ID in the customers service.
-  string customer_id = 3;
+  string customer_id = 3 [(buf.validate.field).required = true];
   // When it starts. Must be in the future.
-  google.protobuf.Timestamp start_time = 4;
-  // How long it lasts.
-  google.protobuf.Duration duration = 5;
-  // What the customer wants from the session.
-  optional string request = 6;
+  google.protobuf.Timestamp start_time = 4 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).timestamp.gt_now = true
+  ];
+  // How long it lasts, from 15 minutes to 8 hours.
+  google.protobuf.Duration duration = 5 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).duration = {
+      gte: {seconds: 900}
+      lte: {seconds: 28800}
+    }
+  ];
+  // What the customer wants from the session, up to 500 characters.
+  optional string request = 6 [(buf.validate.field).string.max_len = 500];
 }
 
 // The booking made.
@@ -159,11 +175,11 @@ message CreateBookingResponse {
 // Asks to change a booking.
 message UpdateBookingRequest {
   // The booking with its new values. Only the fields in update_mask are read.
-  Booking booking = 1;
+  Booking booking = 1 [(buf.validate.field).required = true];
   // The fields to change, such as start_time or duration.
-  google.protobuf.FieldMask update_mask = 2;
+  google.protobuf.FieldMask update_mask = 2 [(buf.validate.field).required = true];
   // The etag from the last read. FAILED_PRECONDITION when the booking changed since.
-  string etag = 3;
+  string etag = 3 [(buf.validate.field).required = true];
 }
 
 // The booking after the change.
@@ -177,9 +193,11 @@ message UpdateBookingResponse {
 // Asks to cancel a booking.
 message CancelBookingRequest {
   // The booking's ID.
-  string booking_id = 1;
-  // Who cancelled and why.
+  string booking_id = 1 [(buf.validate.field).string.uuid = true];
+  // Who cancelled and why. One of them is required.
   oneof cancelled_by {
+    option (buf.validate.oneof).required = true;
+
     // The customer cancelled.
     CustomerCancellation customer = 2;
     // The venue cancelled.
@@ -189,14 +207,17 @@ message CancelBookingRequest {
 
 // A cancellation the customer asked for.
 message CustomerCancellation {
-  // Why, in the customer's words.
-  string reason = 1;
+  // Why, in the customer's words, up to 500 characters.
+  string reason = 1 [(buf.validate.field).string.max_len = 500];
 }
 
 // A cancellation the venue made.
 message VenueCancellation {
-  // Why the venue cancelled.
-  string reason = 1;
+  // Why the venue cancelled, from 1 to 500 characters.
+  string reason = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 500
+  }];
   // Whether the venue offers another slot. The customer gets a message either way.
   bool rebook_offered = 2;
 }
@@ -210,7 +231,7 @@ message CancelBookingResponse {
 // Asks to follow a venue's bookings.
 message WatchBookingsRequest {
   // The venue's code.
-  string venue_id = 1;
+  string venue_id = 1 [(buf.validate.field).string.pattern = "^[A-Z]{3}[0-9]{3}$"];
 }
 
 // One change to a booking.
@@ -224,7 +245,7 @@ message WatchBookingsResponse {
 // Asks for every booking at one venue.
 message ListVenueBookingsRequest {
   // The venue's code.
-  string venue_id = 1;
+  string venue_id = 1 [(buf.validate.field).string.pattern = "^[A-Z]{3}[0-9]{3}$"];
 }
 
 // Every booking at the venue.
