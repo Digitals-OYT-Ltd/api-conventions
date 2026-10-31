@@ -40,14 +40,16 @@
 
 	<!-- Runs once per tool. -->
 	<Target Name="_DigitalsFetchNativeTool" DependsOnTargets="_DigitalsSelectNativeTools" Outputs="%(_NativeTool.Identity)">
+		<!-- Under its RID: osx-arm64 and osx-x64 share oasdiff's darwin_all archive and pack in parallel. -->
 		<PropertyGroup>
-			<_Archive>$(_NativeCache)%(_NativeTool.Archive)</_Archive>
+			<_ArchiveFolder>$(_NativeCache)%(_NativeTool.Rid)/</_ArchiveFolder>
+			<_Archive>$(_ArchiveFolder)%(_NativeTool.Archive)</_Archive>
 			<_Expected>%(_NativeTool.Sha256)</_Expected>
 		</PropertyGroup>
 
 		<DownloadFile Condition="!Exists('$(_Archive)')"
 			SourceUrl="https://github.com/%(_NativeTool.Repository)/releases/download/v%(_NativeTool.Version)/%(_NativeTool.Archive)"
-			DestinationFolder="$(_NativeCache)" />
+			DestinationFolder="$(_ArchiveFolder)" />
 
 		<GetFileHash Files="$(_Archive)" Algorithm="SHA256">
 			<Output TaskParameter="Hash" PropertyName="_Actual" />

@@ -67,7 +67,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: |
-            src/Digitals.OpenApi/obj/native/*.tar.gz
+            src/Digitals.OpenApi/obj/native/*/*.tar.gz
             src/Digitals.OpenApi/obj/web/
           key: openapi-native-${{ hashFiles('src/WebAssets.targets', 'src/Digitals.OpenApi/*.targets', 'src/Digitals.OpenApi/*.csproj') }}
 
