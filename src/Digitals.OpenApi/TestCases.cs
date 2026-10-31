@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi;
 using static Digitals.SchemaRules;
@@ -14,6 +15,10 @@ namespace Digitals.OpenApi;
 /// <param name="Detail">What to send and what to expect.</param>
 internal sealed record TestCase(string Id, string Operation, string Method, string Path, string Status, string Detail)
     : ITestCase;
+
+/// <summary>The JSON for a list of <see cref="TestCase"/>, generated at compile time for native AOT.</summary>
+[JsonSerializable(typeof(List<TestCase>))]
+internal sealed partial class TestCaseJson : JsonSerializerContext;
 
 /// <summary>
 /// The test cases a contract implies: one per documented response, and one per rule on each input, its

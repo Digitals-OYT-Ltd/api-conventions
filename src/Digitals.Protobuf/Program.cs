@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Digitals.Protobuf;
 
@@ -119,8 +119,13 @@ internal static class Program
         var work = Directory.CreateTempSubdirectory("dt-protobuf-");
         try
         {
-            var plugin = new { local = Executable("protoc-gen-doc"), @out = work.FullName, opt = "json,contract.json" };
-            var template = JsonSerializer.Serialize(new { version = "v2", plugins = new[] { plugin } });
+            var plugin = new JsonObject
+            {
+                ["local"] = Executable("protoc-gen-doc"),
+                ["out"] = work.FullName,
+                ["opt"] = "json,contract.json",
+            };
+            var template = new JsonObject { ["version"] = "v2", ["plugins"] = new JsonArray(plugin) }.ToJsonString();
             var exitCode = Buf(inputs[..1], ["--template", template], exclude: true,
                 (copies, rest) => ["generate", copies[0], .. rest]);
             if (exitCode != 0)
@@ -167,7 +172,7 @@ internal static class Program
 
         var only = settings.GetValueOrDefault("--only");
         var cases = TestCases.From(contract, calls: only != "rules", rules: only != "calls");
-        CaseList.Write(cases, settings.GetValueOrDefault("--format") == "json", Heading);
+        CaseList.Write(cases, TestCaseJson.Default, settings.GetValueOrDefault("--format") == "json", Heading);
         return 0;
     }
 

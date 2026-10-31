@@ -40,7 +40,7 @@
 
 	<!-- Runs once per tool. -->
 	<Target Name="_DigitalsFetchNativeTool" DependsOnTargets="_DigitalsSelectNativeTools" Outputs="%(_NativeTool.Identity)">
-		<!-- Under its RID: osx-arm64 and osx-x64 share oasdiff's darwin_all archive and pack in parallel. -->
+		<!-- Under its RID: osx-arm64 and osx-x64 share oasdiff's darwin_all archive and pack on the same machine. -->
 		<PropertyGroup>
 			<_ArchiveFolder>$(_NativeCache)%(_NativeTool.Rid)/</_ArchiveFolder>
 			<_Archive>$(_ArchiveFolder)%(_NativeTool.Archive)</_Archive>

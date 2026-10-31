@@ -19,7 +19,7 @@ internal static partial class ViewerPage
         {
             ["TITLE"] = WebUtility.HtmlEncode(title),
             // A JSON string with <, > and & escaped, so the contract can't close the script around it.
-            ["SPEC"] = JsonSerializer.Serialize(File.ReadAllText(spec)),
+            ["SPEC"] = $"\"{JsonEncodedText.Encode(File.ReadAllText(spec))}\"",
             ["STYLES"] = File.ReadAllText(Path.Combine(viewer, styles)),
             ["SCRIPT"] = File.ReadAllText(Path.Combine(viewer, script))
                 .Replace("</script", "<\\/script", StringComparison.OrdinalIgnoreCase),

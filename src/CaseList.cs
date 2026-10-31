@@ -1,5 +1,6 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Digitals;
 
@@ -22,15 +23,22 @@ internal interface ITestCase
 internal static class CaseList
 {
     /// <summary>
-    /// Prints <paramref name="cases"/>: as JSON, or as text with each operation under its
-    /// <paramref name="heading"/> and a count on stderr.
+    /// Prints <paramref name="cases"/>: as JSON, with the tool's compile-time <paramref name="types"/> so it
+    /// runs without reflection, or as text with each operation under its <paramref name="heading"/> and a
+    /// count on stderr.
     /// </summary>
-    public static void Write<T>(List<T> cases, bool json, Func<T, string> heading)
+    public static void Write<T>(List<T> cases, IJsonTypeInfoResolver types, bool json, Func<T, string> heading)
         where T : ITestCase
     {
         if (json)
         {
-            Console.Out.WriteLine(JsonSerializer.Serialize(cases, Json));
+            var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            {
+                WriteIndented = true,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                TypeInfoResolver = types,
+            };
+            Console.Out.WriteLine(JsonSerializer.Serialize(cases, options.GetTypeInfo(typeof(List<T>))));
             return;
         }
 
@@ -50,10 +58,4 @@ internal static class CaseList
         var count = $"{Sentences.Count(cases.Count, "case")} in {Sentences.Count(operations, "operation")}";
         Console.Error.WriteLine(count);
     }
-
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
 }

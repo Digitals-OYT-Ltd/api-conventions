@@ -156,7 +156,7 @@ To change a rule for one repo, write the rule set next to your contract with `ru
   <img alt="How it works: your contract and the Digitals rules go into dt-openapi, dt-asyncapi or dt-protobuf, which runs its bundled linter and gives back an offline HTML page, findings with file, line, message and rule, and an exit code that fails CI" src="docs/images/how-it-works-light.svg" width="860">
 </picture>
 
-Each tool is a .NET 10 dotnet tool packed once per platform: macOS, Linux and Windows on x64 and Arm64. `dotnet tool install` picks the build for your machine, and it runs on any newer .NET runtime too. The linters are downloaded from their releases when the package is built, checked against pinned SHA-256 hashes, and shipped with their licences in the package's `native/` folder.
+Each tool is a .NET 10 dotnet tool compiled with native AOT once per platform: macOS, Linux and Windows on x64 and Arm64. `dotnet tool install` picks the build for your machine, a native executable that starts in a few milliseconds and needs no .NET runtime to run. The linters are downloaded from their releases when the package is built, checked against pinned SHA-256 hashes, and shipped with their licences in the package's `native/` folder.
 
 ## Contributing
 
@@ -166,7 +166,7 @@ You need the .NET 10 SDK, [just](https://github.com/casey/just) and PowerShell 7
 | --- | --- |
 | `just test [tool]` | Every rule and command test, or one tool's: `just test OpenApi`. Fails below 100% line and branch coverage |
 | `just format-check` | The formatting gate CI runs; `just format` fixes it |
-| `just pack [tool]` | Every package into `artifacts/`, or one tool's. The first run downloads the linters for every platform, about 1 GB |
+| `just pack [tool]` | Each tool's packages for this machine into `artifacts/`, or one tool's. Native AOT builds only for the OS it runs on, so CI packs each platform on its own runner |
 
 After a rule change, also run `just test-template` in csharp-api-template, whose sample contract must stay clean. [AGENTS.md](AGENTS.md) and the `AGENTS.md` beside each tool cover where a rule goes, how to test it, and the linter quirks that cost time.
 

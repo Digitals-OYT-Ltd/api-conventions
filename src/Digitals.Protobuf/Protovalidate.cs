@@ -474,12 +474,8 @@ internal sealed partial class Protovalidate(Contract contract)
     private static string ShowBytes(string base64) =>
         $"0x{Convert.ToHexString(Convert.FromBase64String(base64)).ToLowerInvariant()}";
 
-    private static string Show(string value) => JsonSerializer.Serialize(value, Relaxed);
-
-    private static readonly JsonSerializerOptions Relaxed = new()
-    {
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+    private static string Show(string value) =>
+        $"\"{JsonEncodedText.Encode(value, JavaScriptEncoder.UnsafeRelaxedJsonEscaping)}\"";
 
     private static string Name(JsonObject node) => (string)node["name"]!;
 

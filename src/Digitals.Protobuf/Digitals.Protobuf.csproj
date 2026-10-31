@@ -3,6 +3,14 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<RollForward>Major</RollForward>
+		<!-- Native AOT: each RID packs as one native executable, packed on that OS (scripts/pack.ps1 -Rid). It turns on
+		     the trim and AOT analyzers for every build too, so reflection that AOT can't compile fails it. The
+		     native debug symbols (.dSYM, .dbg, .pdb) stay out of the package. -->
+		<PublishAot>true</PublishAot>
+		<CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+		<!-- No ICU: the output never depends on the machine's culture, and the Linux binary runs without
+		     libicu, as in a slim container. -->
+		<InvariantGlobalization>true</InvariantGlobalization>
 
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>dt-protobuf</ToolCommandName>

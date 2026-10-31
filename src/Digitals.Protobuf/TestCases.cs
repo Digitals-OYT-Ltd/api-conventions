@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Digitals.Protobuf;
@@ -12,6 +13,10 @@ namespace Digitals.Protobuf;
 /// <param name="Detail">What to do and what to expect.</param>
 internal sealed record TestCase(string Id, string Operation, string Kind, string Path, bool Deprecated, string Detail)
     : ITestCase;
+
+/// <summary>The JSON for a list of <see cref="TestCase"/>, generated at compile time for native AOT.</summary>
+[JsonSerializable(typeof(List<TestCase>))]
+internal sealed partial class TestCaseJson : JsonSerializerContext;
 
 /// <summary>
 /// The test cases a contract implies: one for a call that succeeds, one for each status the method's comment

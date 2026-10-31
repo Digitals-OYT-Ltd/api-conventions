@@ -127,7 +127,8 @@ internal static class Program
 
         var only = settings.GetValueOrDefault("--only");
         var cases = TestCases.From(operations, messages: only != "rules", rules: only != "messages");
-        CaseList.Write(cases, settings.GetValueOrDefault("--format") == "json", c => $"{c.Action} {c.Channel}");
+        var json = settings.GetValueOrDefault("--format") == "json";
+        CaseList.Write(cases, TestCaseJson.Default, json, c => $"{c.Action} {c.Channel}");
         return 0;
     }
 

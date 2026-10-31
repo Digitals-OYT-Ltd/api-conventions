@@ -59,8 +59,8 @@ jobs:
         with:
           global-json-file: global.json
 
-      # The tool packs once per platform with that platform's binaries, so keep the downloads between
-      # runs. A version or hash change changes the key.
+      # The tests run the bundled binaries for this runner, so keep the downloads between runs. A version or
+      # hash change changes the key. Each RID's pack job keeps its own.
       - name: 💾 Cache Bundled Binaries
         uses: actions/cache@v6
         with:
@@ -75,19 +75,81 @@ jobs:
         shell: pwsh
         run: ./scripts/test-unit.ps1 -Package Protobuf
 
-      - name: 🗜️ Build and Pack
+      # The pointer package: no code, just the list of RID packages `dotnet tool install` picks from.
+      - name: 🗜️ Pack Pointer
         shell: pwsh
-        run: ./scripts/pack.ps1 -Package Protobuf
+        run: ./scripts/pack.ps1 -Package Protobuf -Rid any
 
       - name: 📤 Upload Package
         uses: actions/upload-artifact@v7
         with:
-          name: protobuf-nupkg
+          name: protobuf-nupkg-any
+          path: artifacts/*.nupkg
+          if-no-files-found: error
+
+  # One native AOT package per RID. AOT compiles only for the OS it runs on, so each RID packs on a runner of
+  # its OS. osx-x64 and win-arm64 cross-compile from the other architecture, so they can't run a smoke test.
+  pack:
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - { rid: linux-x64, os: ubuntu-latest }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+          - { rid: osx-arm64, os: macos-latest }
+          - { rid: osx-x64, os: macos-latest, cross: true }
+          - { rid: win-x64, os: windows-latest }
+          - { rid: win-arm64, os: windows-latest, cross: true }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: ⚙️ Use .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Native AOT links with clang on Linux and needs zlib.
+      - name: 🧰 Install AOT Prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: 💾 Cache Bundled Binaries
+        uses: actions/cache@v6
+        with:
+          path: |
+            src/Digitals.Protobuf/obj/native/${{ matrix.rid }}/
+          key: protobuf-native-${{ matrix.rid }}-${{ hashFiles('src/NativeBinaries.targets', 'src/Digitals.Protobuf/*.csproj') }}
+
+      - name: 🗜️ Pack ${{ matrix.rid }}
+        shell: pwsh
+        run: ./scripts/pack.ps1 -Package Protobuf -Rid ${{ matrix.rid }}
+
+      # The packed executable runs its own code and its bundled linter on this OS.
+      - name: 💨 Smoke Test
+        if: ${{ !matrix.cross }}
+        shell: pwsh
+        env:
+          DT_VERSION_CHECK: 'off'
+        run: |
+          $tool = "src/Digitals.Protobuf/bin/Release/net10.0/${{ matrix.rid }}/publish/Digitals.Protobuf"
+          & $tool cases examples/protobuf
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $tool lint examples/protobuf
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 📤 Upload Package
+        uses: actions/upload-artifact@v7
+        with:
+          name: protobuf-nupkg-${{ matrix.rid }}
           path: artifacts/*.nupkg
           if-no-files-found: error
 
   publish:
-    needs: build
+    needs: [build, pack]
     if: startsWith(github.ref, 'refs/tags/protobuf/v')
     runs-on: ubuntu-latest
     permissions:
@@ -102,8 +164,9 @@ jobs:
       - name: 📥 Download Package
         uses: actions/download-artifact@v8
         with:
-          name: protobuf-nupkg
+          pattern: protobuf-nupkg-*
           path: artifacts
+          merge-multiple: true
 
       # nuget.org's temporary API key lives for an hour, so ask for it just before the push.
       - name: 🔐 Authenticate to NuGet (OIDC -> short-lived API key)

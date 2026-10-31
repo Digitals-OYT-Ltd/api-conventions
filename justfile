@@ -13,7 +13,7 @@ build:
 test package="":
     & ./scripts/test-unit.ps1 -Package '{{package}}'
 
-# Pack every tool into artifacts/, or one: just pack OpenApi (version from its openapi/v* tag via MinVer)
+# Pack every tool for this machine into artifacts/, or one: just pack OpenApi (version from its openapi/v* tag via MinVer)
 pack package="":
     & ./scripts/pack.ps1 -Package '{{package}}'
 

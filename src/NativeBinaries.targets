@@ -26,7 +26,7 @@
 
 	<!--
 		Runs once per file. A file is cached under its hash, so a version bump never reuses an old one, and under
-		its RID, because pack builds every RID in parallel and two RIDs can share a file (Spectral's one
+		its RID, because one machine can pack several RIDs and two RIDs can share a file (Spectral's one
 		spectral.exe, any licence).
 	-->
 	<Target Name="_DigitalsFetchNativeFile" DependsOnTargets="_DigitalsSelectNativeDownloads" Outputs="%(_NativeFile.Identity)">

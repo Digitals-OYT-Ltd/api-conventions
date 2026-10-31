@@ -201,7 +201,8 @@ internal static class Program
 
         var only = settings.GetValueOrDefault("--only");
         var cases = TestCases.From(document, responses: only != "rules", rules: only != "responses");
-        CaseList.Write(cases, settings.GetValueOrDefault("--format") == "json", c => $"{c.Method} {c.Path}");
+        var json = settings.GetValueOrDefault("--format") == "json";
+        CaseList.Write(cases, TestCaseJson.Default, json, c => $"{c.Method} {c.Path}");
         return 0;
     }
 

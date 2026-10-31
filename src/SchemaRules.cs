@@ -381,12 +381,8 @@ internal sealed record SchemaRules(
 
     private static string Show(decimal value) => value.ToString(CultureInfo.InvariantCulture);
 
-    private static string Show(string value) => JsonSerializer.Serialize(value, Relaxed);
-
-    private static readonly JsonSerializerOptions Relaxed = new()
-    {
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+    private static string Show(string value) =>
+        $"\"{JsonEncodedText.Encode(value, JavaScriptEncoder.UnsafeRelaxedJsonEscaping)}\"";
 }
 
 /// <summary>Null-safe enumeration for the models' nullable collections.</summary>

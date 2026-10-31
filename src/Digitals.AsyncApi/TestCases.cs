@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using static Digitals.SchemaRules;
 using static Digitals.Sentences;
 
@@ -11,6 +12,10 @@ namespace Digitals.AsyncApi;
 /// <param name="Detail">What to do and what to expect.</param>
 internal sealed record TestCase(string Id, string Operation, string Action, string Channel, string Detail)
     : ITestCase;
+
+/// <summary>The JSON for a list of <see cref="TestCase"/>, generated at compile time for native AOT.</summary>
+[JsonSerializable(typeof(List<TestCase>))]
+internal sealed partial class TestCaseJson : JsonSerializerContext;
 
 /// <summary>
 /// The test cases a contract implies: one per message an operation sends or receives, one for a duplicate of a
