@@ -8,7 +8,7 @@ Only the latest release of each tool gets fixes: `dt-openapi`, `dt-asyncapi` and
 
 Report it privately at [Security > Report a vulnerability](https://github.com/Digitals-OYT-Ltd/api-conventions/security/advisories/new). Don't open a public issue. Say which tool and version, and how to reproduce it.
 
-That covers the tools and everything they bundle: vacuum, oasdiff, Spectral, buf, protoc-gen-doc, protovalidate, Swagger UI and the AsyncAPI viewer. A vulnerability in a bundled tool that its own project has already fixed is something we only need to ship, and `.github/workflows/security.yml` looks for those every Monday and opens an issue.
+That covers the tools and everything they bundle: vacuum, oasdiff, Spectral, buf, protovalidate, Swagger UI and the AsyncAPI viewer. A vulnerability in a bundled tool that its own project has already fixed is something we only need to ship, and `.github/workflows/security.yml` looks for those every Monday and opens an issue.
 
 ## Withdrawing a vulnerable version
 

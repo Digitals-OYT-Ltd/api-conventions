@@ -35,7 +35,7 @@
 
 A contract is the first thing we write for an API and the thing every consumer reads. These tools check that every contract follows the Digitals API conventions the same way. Each one runs an open-source linter with our rules, fails CI with that linter's exit code, and writes a documentation page you can send as an attachment.
 
-- **One install per format.** vacuum, oasdiff, Spectral, buf and protoc-gen-doc ship inside the package for your platform. No Node, Go or Docker on the build agent.
+- **One install per format.** vacuum, oasdiff, Spectral and buf ship inside the package for your platform. No Node, Go or Docker on the build agent.
 - **The same result everywhere.** Every bundled binary is pinned and checked against its SHA-256 when the package is built, so a laptop and CI run the same linter with the same rules.
 - **Works on any contract.** Point it at a path or a URL. `--baseline` audits an API that was never built to our conventions.
 - **Documentation without a server.** `docs` inlines the viewer and the contract into one HTML file that opens with no network.
@@ -80,7 +80,7 @@ Removing an operation needs it deprecated first, with an `x-sunset` date at leas
 | Report | `report` (HTML), `dashboard` (terminal) | | |
 | Docs page | `docs` (Swagger UI) | `docs` (AsyncAPI viewer) | `docs` (our own viewer) |
 | Print or extend the rules | `ruleset` | `ruleset` | `ruleset` |
-| Bundled | vacuum, oasdiff, Swagger UI | Spectral, AsyncAPI React | buf, protoc-gen-doc, protovalidate |
+| Bundled | vacuum, oasdiff, Swagger UI | Spectral, AsyncAPI React | buf, protovalidate |
 | Raw access | `vacuum`, `oasdiff` | `spectral` | `buf` |
 
 Every rule has its own section on the rules page for [OpenAPI](docs/rules/openapi.md), [AsyncAPI](docs/rules/asyncapi.md) or [Protobuf](docs/rules/protobuf.md): why it exists, a failing and a passing example, and the message the linter prints.
@@ -192,4 +192,4 @@ MinVer versions each tool from its own tags only.
 
 ## Licence
 
-[MIT](LICENSE). The bundled tools keep their own licences, which ship beside them in each package: vacuum and protoc-gen-doc are MIT, and oasdiff, Spectral, buf, Swagger UI and the AsyncAPI React component are Apache-2.0.
+[MIT](LICENSE). The bundled tools keep their own licences, which ship beside them in each package: vacuum is MIT, and oasdiff, Spectral, buf, Swagger UI and the AsyncAPI React component are Apache-2.0.

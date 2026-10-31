@@ -1,6 +1,6 @@
 # Digitals.Protobuf
 
-`dt-protobuf` lints the `.proto` files of a gRPC API against the Digitals rules, checks their formatting, fails on breaking changes, and writes them as a documentation page. It bundles [buf](https://github.com/bufbuild/buf), [protoc-gen-doc](https://github.com/pseudomuto/protoc-gen-doc) and [protovalidate](https://protovalidate.com), so nothing else needs installing.
+`dt-protobuf` lints the `.proto` files of a gRPC API against the Digitals rules, checks their formatting, fails on breaking changes, and writes them as a documentation page. It bundles [buf](https://github.com/bufbuild/buf) and [protovalidate](https://protovalidate.com), so nothing else needs installing.
 
 ```sh
 dotnet tool install Digitals.Protobuf       # or add it to .config/dotnet-tools.json
@@ -69,4 +69,4 @@ buf's rules are listed at [buf.build/docs/lint/rules](https://buf.build/docs/lin
 
 Each run asks nuget.org, at most once a day, whether this version is vulnerable or deprecated, and if it is, prints the advisory and how to upgrade to stderr. Set `DT_FAIL_ON_WITHDRAWN=1` to fail the run instead, `DT_VERSION_CHECK=off` to skip the check, or `DT_NUGET_REGISTRATION` to a mirror's registration base URL. Without a network it says nothing.
 
-The package is platform-specific: `dotnet tool install` picks the build for your machine (macOS, Linux and Windows, x64 and Arm64). buf and protovalidate are Apache-2.0 licensed and protoc-gen-doc MIT licensed; their licences ship beside the binaries in `native/`.
+The package is platform-specific: `dotnet tool install` picks the build for your machine (macOS, Linux and Windows, x64 and Arm64). buf and protovalidate are Apache-2.0 licensed; their licences ship beside the binaries in `native/`.

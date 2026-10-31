@@ -1,7 +1,112 @@
-// Renders protoc-gen-doc's JSON. Text from the contract only ever goes in through text nodes, never as HTML,
-// so a comment can't add markup to the page.
+// Renders buf's JSON image of the contract (buf build --exclude-imports). Text from the contract only ever goes
+// in through text nodes, never as HTML, so a comment can't add markup to the page.
 (() => {
-  const { files } = JSON.parse(contract);
+  // A comment is found by the path to what it documents: [4, 0, 2, 1] is the first message's second field.
+  // These are the field numbers of FileDescriptorProto and the descriptors inside it.
+  const path = { syntax: 12, message: 4, enum: 5, service: 6, field: 2, nested: 3, nestedEnum: 4, value: 2, method: 2 };
+
+  const scalars = {
+    TYPE_DOUBLE: "double", TYPE_FLOAT: "float", TYPE_INT64: "int64", TYPE_UINT64: "uint64", TYPE_INT32: "int32",
+    TYPE_FIXED64: "fixed64", TYPE_FIXED32: "fixed32", TYPE_BOOL: "bool", TYPE_STRING: "string", TYPE_BYTES: "bytes",
+    TYPE_UINT32: "uint32", TYPE_SFIXED32: "sfixed32", TYPE_SFIXED64: "sfixed64", TYPE_SINT32: "sint32", TYPE_SINT64: "sint64",
+  };
+
+  const byName = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+  // Each file as the page reads it: messages and enums, nested ones too, in name order; fields, values and
+  // methods in the order they're declared.
+  const readFile = file => {
+    const pkg = file.package ?? "";
+    const qualify = name => (pkg ? `${pkg}.${name}` : name);
+    const comments = new Map((file.sourceCodeInfo?.location ?? []).map(l => [(l.path ?? []).join(), l]));
+    // The comment above, or else the one after on the same line, without the space after each //.
+    const description = at => {
+      const location = comments.get(at.join());
+      const text = location?.leadingComments ?? location?.trailingComments ?? "";
+      return text.split("\n").map(line => line.replace(/^ /, "")).join("\n").trim();
+    };
+    // A type in the file's own package is named from there, as the contract names it; any other by its full name.
+    const own = pkg ? `.${pkg}.` : ".";
+    const longType = name => (name.startsWith(own) ? name.slice(own.length) : name.slice(1));
+    const fullType = field => (field.typeName ? field.typeName.slice(1) : scalars[field.type]);
+    const proto2 = (file.syntax ?? "proto2") === "proto2";
+
+    const messages = [];
+    const enums = [];
+    const readEnum = (e, at, scope) => enums.push({
+      name: e.name,
+      longName: scope ? `${scope}.${e.name}` : e.name,
+      fullName: qualify(scope ? `${scope}.${e.name}` : e.name),
+      description: description(at),
+      options: e.options,
+      values: (e.value ?? []).map((v, i) => ({
+        name: v.name,
+        number: String(v.number ?? 0),
+        description: description([...at, path.value, i]),
+        options: v.options,
+      })),
+    });
+    const readMessage = (m, at, scope) => {
+      const longName = scope ? `${scope}.${m.name}` : m.name;
+      const fullName = qualify(longName);
+      const entries = new Set((m.nestedType ?? []).filter(n => n.options?.mapEntry).map(n => `.${fullName}.${n.name}`));
+      messages.push({
+        name: m.name,
+        longName,
+        fullName,
+        description: description(at),
+        options: m.options,
+        fields: (m.field ?? []).map((f, i) => ({
+          name: f.name,
+          label: f.label === "LABEL_REPEATED" ? "repeated"
+            : f.label === "LABEL_REQUIRED" ? "required"
+              : f.proto3Optional || proto2 ? "optional" : "",
+          ismap: entries.has(f.typeName),
+          fullType: fullType(f),
+          longType: f.typeName ? longType(f.typeName) : scalars[f.type],
+          isoneof: f.oneofIndex !== undefined,
+          oneofdecl: f.oneofIndex !== undefined ? m.oneofDecl[f.oneofIndex].name : "",
+          defaultValue: f.defaultValue ?? "",
+          description: description([...at, path.field, i]),
+          options: f.options,
+        })),
+      });
+      (m.nestedType ?? []).forEach((n, i) => readMessage(n, [...at, path.nested, i], longName));
+      (m.enumType ?? []).forEach((e, i) => readEnum(e, [...at, path.nestedEnum, i], longName));
+    };
+    (file.messageType ?? []).forEach((m, i) => readMessage(m, [path.message, i], ""));
+    (file.enumType ?? []).forEach((e, i) => readEnum(e, [path.enum, i], ""));
+
+    const services = (file.service ?? []).map((s, i) => ({
+      name: s.name,
+      fullName: qualify(s.name),
+      description: description([path.service, i]),
+      options: s.options,
+      methods: (s.method ?? []).map((m, j) => ({
+        name: m.name,
+        description: description([path.service, i, path.method, j]),
+        options: m.options,
+        requestStreaming: m.clientStreaming === true,
+        responseStreaming: m.serverStreaming === true,
+        requestFullType: m.inputType.slice(1),
+        requestLongType: longType(m.inputType),
+        responseFullType: m.outputType.slice(1),
+        responseLongType: longType(m.outputType),
+      })),
+    }));
+
+    return {
+      name: file.name,
+      package: pkg,
+      description: description([path.syntax]),
+      messages: messages.sort((a, b) => byName(a.longName, b.longName)),
+      enums: enums.sort((a, b) => byName(a.longName, b.longName)),
+      services: services.sort((a, b) => byName(a.name, b.name)),
+    };
+  };
+
+  // In buf's order: a file comes after the files it imports.
+  const files = (JSON.parse(contract).file ?? []).map(readFile);
 
   const el = (tag, attributes, ...children) => {
     const node = document.createElement(tag);

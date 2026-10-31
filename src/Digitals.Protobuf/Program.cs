@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Nodes;
 
 namespace Digitals.Protobuf;
 
@@ -106,7 +105,7 @@ internal static class Program
             (copies, rest) => ["breaking", copies[1], "--against", copies[0], .. rest]);
     }
 
-    // buf compiles the input and hands it to protoc-gen-doc, whose JSON the page renders. Only the input's own
+    // buf compiles the input to its JSON image, comments included, which the page renders. Only the input's own
     // files are documented, not what they import, such as google/protobuf/timestamp.proto.
     private static int Docs(string[] args)
     {
@@ -119,22 +118,15 @@ internal static class Program
         var work = Directory.CreateTempSubdirectory("dt-protobuf-");
         try
         {
-            var plugin = new JsonObject
-            {
-                ["local"] = Executable("protoc-gen-doc"),
-                ["out"] = work.FullName,
-                ["opt"] = "json,contract.json",
-            };
-            var template = new JsonObject { ["version"] = "v2", ["plugins"] = new JsonArray(plugin) }.ToJsonString();
-            var exitCode = Buf(inputs[..1], ["--template", template], exclude: true,
-                (copies, rest) => ["generate", copies[0], .. rest]);
+            var json = Path.Combine(work.FullName, "contract.json");
+            var exitCode = Buf(inputs[..1], [], exclude: true,
+                (copies, rest) => ["build", copies[0], "--exclude-imports", "-o", json, .. rest]);
             if (exitCode != 0)
             {
                 return exitCode;
             }
 
             var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(inputs[0])));
-            var json = Path.Combine(work.FullName, "contract.json");
             var output = inputs.ElementAtOrDefault(1) ?? name + ".html";
             ViewerPage.Write("protobuf.html", "protobuf.js", "protobuf.css", json, output, name);
             Console.Error.WriteLine($"Wrote {output}");

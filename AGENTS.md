@@ -2,7 +2,7 @@
 
 > Canonical agent/project instructions for this repo. Tool-agnostic.
 
-api-conventions, .NET 10 dotnet tools: the Digitals contract linters, one per format, each wrapping open-source linters with the Digitals rules. `dt-openapi` (vacuum and oasdiff, HTTP APIs), `dt-asyncapi` (Spectral, events), `dt-protobuf` (buf and protoc-gen-doc, gRPC).
+api-conventions, .NET 10 dotnet tools: the Digitals contract linters, one per format, each wrapping open-source linters with the Digitals rules. `dt-openapi` (vacuum and oasdiff, HTTP APIs), `dt-asyncapi` (Spectral, events), `dt-protobuf` (buf, gRPC).
 
 ## Tooling: `just`
 
@@ -12,7 +12,7 @@ api-conventions, .NET 10 dotnet tools: the Digitals contract linters, one per fo
 - Each tool sets `PublishAot`, which runs the trim and AOT analyzers on every build: reflection AOT can't compile, such as `JsonSerializer` without a `JsonSerializerContext`, fails it. Serialize through a source-generated context, as `TestCaseJson` does for `cases`.
 - Release one tool by tagging `openapi/vX.Y.Z`, `asyncapi/vX.Y.Z` or `protobuf/vX.Y.Z`; its workflow in `.github/workflows/` publishes it. A file shared by several tools (`src/*.targets`, `src/ViewerPage.cs`, the props files) is in every affected workflow's `paths`, so add a new shared file there too.
 - Run one tool from source: `dotnet run --project src/Digitals.OpenApi -- docs examples/openapi.yaml`.
-- Upgrade buf, Spectral, protoc-gen-doc or protovalidate: change `BufVersion`, `SpectralVersion`, `ProtocGenDocVersion` or `ProtovalidateVersion` in the csproj and every `Sha256` (buf's `sha256.txt`, the GitHub asset digests for Spectral, protoc-gen-doc's `checksums.txt`, `shasum -a 256` of protovalidate's two raw files). protoc-gen-doc ships in a `.tar.gz`, so its `_NativeDownload` items name the file with `Extract` and their `Sha256` is the archive's.
+- Upgrade buf, Spectral or protovalidate: change `BufVersion`, `SpectralVersion` or `ProtovalidateVersion` in the csproj and every `Sha256` (buf's `sha256.txt`, the GitHub asset digests for Spectral, `shasum -a 256` of protovalidate's two raw files).
 - `.github/dependabot.yml` updates NuGet packages, Actions and the SDK; it can't see the bundled tools. `.github/workflows/security.yml` scans those weekly and opens an issue on a known vulnerability. It reads versions from the csprojs, so a new bundled tool needs a line there and a bump doesn't. `SECURITY.md` is the runbook for withdrawing a vulnerable release, with `.github/workflows/unlist.yml`.
 - Upgrade Swagger UI or the AsyncAPI viewer: change `SwaggerUiVersion` or `AsyncApiReactVersion` and every `_WebAsset` hash (`shasum -a 256` of each file), then open a page.
 

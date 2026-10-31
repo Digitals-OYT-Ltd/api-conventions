@@ -4,8 +4,8 @@
 # csprojs, so a bump needs no change here; a new bundled tool does.
 #
 # What each check sees:
-#   - buf, protoc-gen-doc, vacuum and oasdiff are Go binaries that record every module and the Go version they
-#     were built with, so govulncheck reads the binary as it ships, dependencies and standard library included.
+#   - buf, vacuum and oasdiff are Go binaries that record every module and the Go version they were built
+#     with, so govulncheck reads the binary as it ships, dependencies and standard library included.
 #   - Swagger UI, AsyncAPI React and Spectral are looked up on OSV.dev by their npm name and version. Spectral's
 #     binary also carries a Node.js runtime, which this doesn't see.
 #   - protovalidate ships only validate.proto, a schema with no code, so there is nothing to check.
@@ -53,7 +53,7 @@ jobs:
       - name: 🔎 Go Binaries
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
-          for tool in buf protoc-gen-doc vacuum oasdiff; do
+          for tool in buf vacuum oasdiff; do
             binary=$(find src -path '*/bin/*/native/*' -name "$tool" -type f | head -1)
             if [ -z "$binary" ]; then echo "::error::No $tool binary in a build output"; exit 1; fi
             # Exit 3 means it found something; any other failure is the scan's own.

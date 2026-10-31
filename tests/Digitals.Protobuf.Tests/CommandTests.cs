@@ -106,6 +106,31 @@ public sealed class CommandTests
         Assert.Empty(page);
     }
 
+    // protoc-gen-doc wrote one JSON file per directory, so a page used to keep only one of them.
+    [Fact]
+    public void Docs_PackagesInSeveralDirectories_DocumentsEvery()
+    {
+        var module = Buf.Module(RulesTests.Clean);
+        var tags = Path.Combine(module, "acme", "tags", "v1");
+        var page = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.html");
+        try
+        {
+            Directory.CreateDirectory(tags);
+            File.WriteAllText(Path.Combine(tags, "tags.proto"),
+                "syntax = \"proto3\";\n\npackage acme.tags.v1;\n\n// A word a note is filed under.\nmessage Tag {\n  string name = 1;\n}\n");
+
+            Assert.Equal(0, Buf.Tool("docs", module, page).ExitCode);
+            var text = File.ReadAllText(page);
+            Assert.Contains("A note as the service stores it.", text, StringComparison.Ordinal);
+            Assert.Contains("A word a note is filed under.", text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(module, recursive: true);
+            File.Delete(page);
+        }
+    }
+
     [Fact]
     public void Docs_UnknownOption_IsAUsageError() =>
         Assert.Equal(2, Run("docs", RulesTests.Clean, "--theme", "dark").ExitCode);
